@@ -83,7 +83,7 @@
         <div class="toolbar">
           <input id="search" placeholder="جستجو: تیم یا نام شرکت‌کننده…" />
           <select id="filter">
-            <option value="upcoming" selected>بازی‌های ۲۴ ساعت آینده</option>
+            <option value="upcoming" selected>بازی‌های امروز و فردا تا ۰۹:۰۰</option>
             <option value="finished">فقط بازی‌های نتیجه‌دار</option>
             <option value="all">همه بازی‌ها</option>
           </select>
@@ -104,9 +104,9 @@
         <div id="leaderboard"></div>
       </aside>
       <main>
-        <div class="section-title"><h2 id="matchesTitle">بازی‌های ۲۴ ساعت آینده</h2><span class="badge" id="matchesBadge">۱۳ جون ۱۷:۳۰ تا ۱۴ جون ۰۹:۰۰</span></div>
+        <div class="section-title"><h2 id="matchesTitle">بازی‌های امروز و فردا تا ۰۹:۰۰</h2><span class="badge" id="matchesBadge">امروز ۰۰:۰۰ تا فردا ۰۹:۰۰</span></div>
         <div id="messages"></div>
-        <div id="upcomingInfo" class="upcoming-note">به صورت پیش‌فرض بازی‌های بعدی از ساعت 17:30 روز 13 June تا ساعت 09:00 روز 14 June نمایش داده می‌شود.</div>
+        <div id="upcomingInfo" class="upcoming-note">به صورت پیش‌فرض بازی‌های امروز از ساعت 00:00 تا فردا ساعت 09:00 نمایش داده می‌شود.</div>
         <div id="matches" class="matches"></div>
       </main>
     </section>
@@ -152,8 +152,16 @@ const aliases = {
 const el = id => document.getElementById(id);
 const norm = s => (aliases[s] || s || "").toString().trim();
 const key = s => norm(s).toLowerCase().replace(/[^a-z0-9]/g,"");
-const UPCOMING_START = new Date("2026-06-13T17:30:00");
-const UPCOMING_END = new Date("2026-06-14T09:00:00");
+function getDefaultWindow(){
+  // بازه پیش‌فرض: امروز 00:00 تا فردا 09:00 بر اساس تاریخ سیستم کاربر
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9, 0, 0, 0);
+  return { start, end };
+}
+const DEFAULT_WINDOW = getDefaultWindow();
+const UPCOMING_START = DEFAULT_WINDOW.start;
+const UPCOMING_END = DEFAULT_WINDOW.end;
 const scoreStr = r => `${r.homeScore}-${r.awayScore}`;
 const parseScore = s => {
   const m = String(s || "").match(/(\d+)\s*[-:]\s*(\d+)/);
@@ -224,8 +232,8 @@ function renderMatches(){
       return true;
     })
     .filter(m => !q || `${m.home} ${m.away} ${Object.keys(SITE_DATA.predictions).join(" ")}`.toLowerCase().includes(q));
-  el("matchesTitle").textContent = mode === "upcoming" ? "بازی‌های ۲۴ ساعت آینده" : (mode === "finished" ? "بازی‌های نتیجه‌دار" : "همه بازی‌ها");
-  el("matchesBadge").textContent = mode === "upcoming" ? "۱۳ جون ۱۷:۳۰ تا ۱۴ جون ۰۹:۰۰" : "مرتب‌شده بر اساس زمان اجرا";
+  el("matchesTitle").textContent = mode === "upcoming" ? "بازی‌های امروز و فردا تا ۰۹:۰۰" : (mode === "finished" ? "بازی‌های نتیجه‌دار" : "همه بازی‌ها");
+  el("matchesBadge").textContent = mode === "upcoming" ? `${fmtDate(UPCOMING_START)} تا ${fmtDate(UPCOMING_END)}` : "مرتب‌شده بر اساس زمان اجرا";
   el("upcomingInfo").classList.toggle("hide", mode !== "upcoming");
   const finished = SITE_DATA.matches.filter(m => resultForMatch(m));
   el("finishedCount").textContent = finished.length;
