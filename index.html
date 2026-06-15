@@ -1,4 +1,5 @@
 
+
 <!doctype html>
 <html lang="fa" dir="rtl">
 <head>
@@ -105,9 +106,9 @@
         <div id="leaderboard"></div>
       </aside>
       <main>
-        <div class="section-title"><h2 id="matchesTitle">بازی‌های روز جاری تا فردا ۰۹:۰۰</h2><span class="badge" id="matchesBadge">بر اساس ساعت سیستم</span></div>
+        <div class="section-title"><h2 id="matchesTitle">بازی‌های روز جاری تا فردا ۰۹:۰۰</h2><span class="badge" id="matchesBadge">به وقت نروژ</span></div>
         <div id="messages"></div>
-        <div id="upcomingInfo" class="upcoming-note">به صورت پیش‌فرض، روز مسابقه نمایش داده می‌شود: اگر قبل از 09:00 باشد، از 00:00 روز قبل تا 09:00 امروز؛ در غیر این صورت از 00:00 امروز تا 09:00 فردا.</div>
+        <div id="upcomingInfo" class="upcoming-note">به صورت پیش‌فرض، روز مسابقه به وقت نروژ نمایش داده می‌شود: اگر قبل از 09:00 نروژ باشد، از 00:00 روز قبل تا 09:00 امروز؛ در غیر این صورت از 00:00 امروز تا 09:00 فردا.</div>
         <div id="matches" class="matches"></div>
       </main>
     </section>
@@ -256,19 +257,52 @@ async function loadRealResultsFromApi(){
   render();
 }
 
+const NORWAY_TZ = "Europe/Oslo";
+
+// زمان‌های داخل فایل برنامه، زمان آمریکا/EDT هستند.
+// این تابع آن‌ها را به یک Date واقعی تبدیل می‌کند تا بعداً به زمان نروژ نمایش داده شوند.
+function parseKickoffDate(dateString) {
+  const s = String(dateString || "");
+  if (/Z$|[+-]\d{2}:?\d{2}$/.test(s)) return new Date(s);
+  // World Cup 2026 dates in this file are in EDT (UTC-04:00).
+  return new Date(`${s}-04:00`);
+}
+
+function norwayParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: NORWAY_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).formatToParts(date);
+  return Object.fromEntries(parts.map(p => [p.type, p.value]));
+}
+
+function norwayWindowDate(year, month, day, hour = 0, minute = 0) {
+  // Norway is CEST (UTC+02:00) during June/July 2026.
+  return new Date(`${year}-${month}-${day}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00+02:00`);
+}
+
+function addDaysYMD(year, month, day, days) {
+  const d = new Date(`${year}-${month}-${day}T12:00:00+02:00`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return norwayParts(d);
+}
+
 function getDefaultWindow(){
-  // بازه پیش‌فرض «روز مسابقه»:
-  // اگر کاربر بعد از نیمه‌شب و قبل از 09:00 صفحه را باز کند،
-  // هنوز بازی‌های شب قبل باید دیده شوند.
-  // مثال: ساعت 00:34 روز 14 جون => از 13 جون 00:00 تا 14 جون 09:00.
-  // مثال: ساعت 17:30 روز 13 جون => از 13 جون 00:00 تا 14 جون 09:00.
+  // بازه پیش‌فرض بر اساس زمان نروژ:
+  // اگر قبل از 09:00 نروژ باشد، از 00:00 روز قبل تا 09:00 امروز.
+  // در غیر این صورت از 00:00 امروز تا 09:00 فردا.
   const now = new Date();
-  const base = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-  if (now.getHours() < 9) {
-    base.setDate(base.getDate() - 1);
-  }
-  const start = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 0, 0, 0, 0);
-  const end = new Date(base.getFullYear(), base.getMonth(), base.getDate() + 1, 9, 0, 0, 0);
+  const p = norwayParts(now);
+  const hour = Number(p.hour);
+  const base = hour < 9 ? addDaysYMD(p.year, p.month, p.day, -1) : p;
+  const next = addDaysYMD(base.year, base.month, base.day, 1);
+  const start = norwayWindowDate(base.year, base.month, base.day, 0, 0);
+  const end = norwayWindowDate(next.year, next.month, next.day, 9, 0);
   return { start, end };
 }
 const DEFAULT_WINDOW = getDefaultWindow();
@@ -287,7 +321,12 @@ const pointsFor = (pred, real) => {
   if (p[0] === r[0] && p[1] === r[1]) return 6;
   return outcome(p) === outcome(r) ? 4 : 0;
 };
-const fmtDate = d => new Date(d).toLocaleString("en-GB", {dateStyle:"medium", timeStyle:"short"});
+const fmtDate = d => new Intl.DateTimeFormat("en-GB", {
+  timeZone: NORWAY_TZ,
+  dateStyle: "medium",
+  timeStyle: "short",
+  hour12: false
+}).format(d instanceof Date ? d : parseKickoffDate(d));
 
 function resultForMatch(match){
   if (REAL_RESULTS[match.id]) return REAL_RESULTS[match.id];
@@ -328,7 +367,7 @@ function renderLeaderboard(){
 }
 
 function isUpcomingMatch(m){
-  const d = new Date(m.date);
+  const d = parseKickoffDate(m.date);
   return d >= UPCOMING_START && d <= UPCOMING_END;
 }
 
@@ -336,7 +375,7 @@ function renderMatches(){
   const q = el("search").value.trim().toLowerCase();
   const mode = el("filter").value;
   const filtered = [...SITE_DATA.matches]
-    .sort((a,b) => new Date(a.date) - new Date(b.date))
+    .sort((a,b) => parseKickoffDate(a.date) - parseKickoffDate(b.date))
     .filter(m => {
       if (mode === "all") return true;
       if (mode === "finished") return !!resultForMatch(m);
@@ -403,7 +442,7 @@ function openMatch(id){
 function render(){
   renderLeaderboard();
   renderMatches();
-  el("lastUpdate").textContent = new Date().toLocaleTimeString("en-GB", {hour:"2-digit", minute:"2-digit"});
+  el("lastUpdate").textContent = new Intl.DateTimeFormat("en-GB", {timeZone: NORWAY_TZ, hour:"2-digit", minute:"2-digit", hour12:false}).format(new Date());
 }
 
 
