@@ -1,6 +1,7 @@
 
 
 
+
 <!doctype html>
 <html lang="fa" dir="rtl">
 <head>
@@ -82,7 +83,7 @@
     <section class="hero">
       <div class="intro card">
         <h1>🏆 World Cup Prediction League</h1>
-        <p class="sub">نتایج واقعی با پیش‌بینی‌ها مقایسه می‌شود: نتیجه دقیق = ۶ امتیاز، فقط برد/مساوی/باخت درست = ۴ امتیاز، اشتباه = ۰ امتیاز. روی هر بازی کلیک کن تا پیش‌بینی همه را ببینی.</p>
+        <p class="sub">نتایج واقعی با پیش‌بینی‌ها مقایسه می‌شود: نتیجه دقیق = ۶ امتیاز، فقط برد/مساوی/باخت درست = ۴ امتیاز، اشتباه = ۰ امتیاز. در امتیاز مساوی، کسی بالاتر است که نتیجه دقیق بیشتری داشته باشد. روی هر بازی کلیک کن تا پیش‌بینی همه را ببینی.</p>
         <div class="toolbar">
           <input id="search" placeholder="جستجو: تیم یا نام شرکت‌کننده…" />
           <select id="filter">
@@ -347,7 +348,7 @@ function leaderboard(){
       if (pts === 4) outcomeOnly++;
     }
     return {name,total,exact,outcomeOnly,played};
-  }).sort((a,b) => b.total - a.total || b.exact - a.exact || a.name.localeCompare(b.name));
+  }).sort((a,b) => b.total - a.total || b.exact - a.exact || b.outcomeOnly - a.outcomeOnly || a.name.localeCompare(b.name));
   return rows.map((r,i) => ({...r, rank:i+1}));
 }
 
