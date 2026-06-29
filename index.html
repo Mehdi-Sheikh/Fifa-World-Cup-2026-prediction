@@ -3,6 +3,7 @@
 
 
 
+
 <!doctype html>
 <html lang="fa" dir="rtl">
 <head>
@@ -468,11 +469,30 @@ const parseScore = s => {
   return m ? [Number(m[1]), Number(m[2])] : null;
 };
 const outcome = ([h,a]) => h > a ? "H" : h < a ? "A" : "D";
-const pointsFor = (pred, real) => {
+const isKnockoutStage = stage => {
+  const x = String(stage || "").toUpperCase();
+  return x === "R32" || x === "R16" || x === "QF" || x === "SF" || x === "3RD" || x === "F" || /round\s*of\s*32|round\s*of\s*16|quarter|semi|final|3rd/i.test(String(stage || ""));
+};
+const goalDiff = ([h,a]) => Number(h) - Number(a);
+const pointsFor = (pred, real, stage = "") => {
   const p = parseScore(pred);
   if (!p || !real) return 0;
   const r = [Number(real.homeScore), Number(real.awayScore)];
+
+  // Exact score is always 6.
   if (p[0] === r[0] && p[1] === r[1]) return 6;
+
+  // Knockout scoring, including penalty shoot-out winner in all knockout rounds:
+  // - Correct result and exact goal scores: 6
+  // - Correct result and correct goal difference: 4
+  // - Correct result only: 2
+  if (isKnockoutStage(stage)) {
+    if (outcome(p) !== outcome(r)) return 0;
+    if (goalDiff(p) === goalDiff(r)) return 4;
+    return 2;
+  }
+
+  // Group-stage / previous scoring system.
   return outcome(p) === outcome(r) ? 4 : 0;
 };
 const fmtDate = d => new Intl.DateTimeFormat("en-GB", {
@@ -492,42 +512,45 @@ const BONUS_RULES = {
   groupWinner: 24,
   groupRunnerUp: 16,
   bestThird: 8,
-  qualified: { R32: 2, R16: 3, QF: 4, SF: 5, Final: 6 },
-  bracketPairing: 16,
-  champion: 80,
-  championAlt: 40,
-  runnerUp: 40,
-  runnerUpAlt: 20,
-  third: 20,
-  thirdAlt: 10
+  qualifiedTeam: 8
 };
 
-const STAGE_IDS = {
-  group: SITE_DATA.matches.filter(m => /^[A-L]$/.test(m.group) && Number(m.id) <= 72).map(m => String(m.id)),
-  R32: SITE_DATA.matches.filter(m => m.group === "R32").map(m => String(m.id)),
-  R16: SITE_DATA.matches.filter(m => m.group === "R16").map(m => String(m.id)),
-  QF: SITE_DATA.matches.filter(m => m.group === "QF").map(m => String(m.id)),
-  SF: SITE_DATA.matches.filter(m => m.group === "SF").map(m => String(m.id)),
-  third: SITE_DATA.matches.filter(m => m.group === "3rd").map(m => String(m.id)),
-  final: SITE_DATA.matches.filter(m => m.group === "F" && Number(m.id) > 72).map(m => String(m.id))
+// FACTS after group stage. Update this object when the real tournament advances.
+const ACTUAL_FACTS = {
+  groupStandings: {
+    A: ["Mexico", "South Africa", "South Korea", "Czechia"],
+    B: ["Switzerland", "Canada", "Bosnia and Herzegovina", "Qatar"],
+    C: ["Brazil", "Morocco", "Scotland", "Haiti"],
+    D: ["USA", "Australia", "Paraguay", "Türkiye"],
+    E: ["Germany", "Cote D'Voire", "Ecuador", "Curacao"],
+    F: ["Netherlands", "Japan", "Sweden", "Tunisia"],
+    G: ["Belgium", "Egypt", "Iran", "New Zealand"],
+    H: ["Spain", "Cabo Verde", "Uruguay", "Saudi Arabia"],
+    I: ["France", "Norway", "Senegal", "Iraq"],
+    J: ["Argentina", "Austria", "Algeria", "Jordan"],
+    K: ["Colombia", "Portugal", "DR Congo", "Uzbekistan"],
+    L: ["England", "Croatia", "Ghana", "Panama"]
+  },
+  bestThirdPlacedTeams: [
+    "DR Congo", "Sweden", "Ghana", "Ecuador", "Bosnia and Herzegovina", "Algeria", "Paraguay", "Senegal"
+  ],
+  knockoutTeams: [
+    "Germany", "Paraguay", "France", "Sweden", "South Africa", "Canada", "Netherlands", "Morocco",
+    "Portugal", "Croatia", "Spain", "Austria", "USA", "Bosnia and Herzegovina", "Belgium", "Senegal",
+    "Brazil", "Japan", "Cote D'Voire", "Norway", "Mexico", "Ecuador", "England", "DR Congo",
+    "Argentina", "Cabo Verde", "Australia", "Egypt", "Switzerland", "Algeria", "Colombia", "Ghana"
+  ],
+  roundOf32Matches: [
+    ["Germany", "Paraguay"], ["France", "Sweden"], ["South Africa", "Canada"], ["Netherlands", "Morocco"],
+    ["Portugal", "Croatia"], ["Spain", "Austria"], ["USA", "Bosnia and Herzegovina"], ["Belgium", "Senegal"],
+    ["Brazil", "Japan"], ["Cote D'Voire", "Norway"], ["Mexico", "Ecuador"], ["England", "DR Congo"],
+    ["Argentina", "Cabo Verde"], ["Australia", "Egypt"], ["Switzerland", "Algeria"], ["Colombia", "Ghana"]
+  ]
 };
 
 function scoreFromPrediction(preds, id){
   const parsed = parseScore(preds?.[String(id)]);
   return parsed ? {homeScore: parsed[0], awayScore: parsed[1]} : null;
-}
-function scoreFromReal(id){ return REAL_RESULTS[String(id)] || null; }
-function winnerOf(match, score){
-  if (!score) return null;
-  const h = Number(score.homeScore), a = Number(score.awayScore);
-  if (Number.isNaN(h) || Number.isNaN(a) || h === a) return null;
-  return h > a ? match.home : match.away;
-}
-function loserOf(match, score){
-  if (!score) return null;
-  const h = Number(score.homeScore), a = Number(score.awayScore);
-  if (Number.isNaN(h) || Number.isNaN(a) || h === a) return null;
-  return h > a ? match.away : match.home;
 }
 function addStandingRow(table, team){
   if (!table[team]) table[team] = {team, pts:0, gf:0, ga:0, gd:0, w:0, d:0, l:0, played:0};
@@ -538,17 +561,15 @@ function rankRows(rows){
     b.pts - a.pts || b.gd - a.gd || b.gf - a.gf || a.team.localeCompare(b.team)
   );
 }
-function buildGroupTable(group, getScore){
+function buildGroupTableFromPredictions(group, preds){
   const matches = SITE_DATA.matches.filter(m => m.group === group && Number(m.id) <= 72);
   const table = {};
   matches.forEach(m => { addStandingRow(table, m.home); addStandingRow(table, m.away); });
-  let played = 0;
   for (const m of matches) {
-    const s = getScore(m.id);
+    const s = scoreFromPrediction(preds, m.id);
     if (!s) continue;
     const h = Number(s.homeScore), a = Number(s.awayScore);
     if (Number.isNaN(h) || Number.isNaN(a)) continue;
-    played++;
     const H = addStandingRow(table, m.home), A = addStandingRow(table, m.away);
     H.gf += h; H.ga += a; H.gd = H.gf - H.ga; H.played++;
     A.gf += a; A.ga += h; A.gd = A.gf - A.ga; A.played++;
@@ -556,115 +577,74 @@ function buildGroupTable(group, getScore){
     else if (h < a) { A.pts += 3; A.w++; H.l++; }
     else { H.pts++; A.pts++; H.d++; A.d++; }
   }
-  return {group, complete: played === matches.length, rows: rankRows(Object.values(table))};
+  return rankRows(Object.values(table));
 }
-function simulateSource(getScore){
-  const groups = {};
-  const groupWinners = {}, groupRunnersUp = {}, groupThirds = {};
-  const allThirds = [];
+function predictionSummary(name){
+  const preds = SITE_DATA.predictions[name];
+  const groupStandings = {};
+  const winners = {}, runnersUp = {}, thirds = {}, allThirds = [];
   for (const g of "ABCDEFGHIJKL") {
-    const table = buildGroupTable(g, getScore);
-    groups[g] = table;
-    if (table.complete && table.rows.length >= 3) {
-      groupWinners[g] = table.rows[0].team;
-      groupRunnersUp[g] = table.rows[1].team;
-      groupThirds[g] = table.rows[2].team;
-      allThirds.push({...table.rows[2], group:g});
+    const rows = buildGroupTableFromPredictions(g, preds);
+    groupStandings[g] = rows;
+    if (rows[0]) winners[g] = rows[0].team;
+    if (rows[1]) runnersUp[g] = rows[1].team;
+    if (rows[2]) {
+      thirds[g] = rows[2].team;
+      allThirds.push({...rows[2], group:g});
     }
   }
-  const bestThirdRows = rankRows(allThirds).slice(0, 8);
-  const bestThirds = bestThirdRows.map(r => r.team);
-  const qualifiedR32 = [
-    ...Object.values(groupWinners),
-    ...Object.values(groupRunnersUp),
-    ...bestThirds
-  ];
-  const stageWinners = stage => STAGE_IDS[stage].map(id => {
-    const m = SITE_DATA.matches.find(x => String(x.id) === String(id));
-    return m ? winnerOf(m, getScore(id)) : null;
-  }).filter(Boolean);
-  const r16 = stageWinners("R32");
-  const qf = stageWinners("R16");
-  const sf = stageWinners("QF");
-  const finalists = stageWinners("SF");
-  const finalMatch = SITE_DATA.matches.find(m => STAGE_IDS.final.includes(String(m.id)));
-  const finalScore = finalMatch ? getScore(finalMatch.id) : null;
-  const champion = finalMatch ? winnerOf(finalMatch, finalScore) : null;
-  const runnerUp = finalMatch ? loserOf(finalMatch, finalScore) : null;
-  const thirdMatch = SITE_DATA.matches.find(m => STAGE_IDS.third.includes(String(m.id)));
-  const thirdScore = thirdMatch ? getScore(thirdMatch.id) : null;
-  const third = thirdMatch ? winnerOf(thirdMatch, thirdScore) : null;
-  const pairings = {};
-  for (const st of ["R32","R16","QF","SF","third","final"]) {
-    pairings[st] = STAGE_IDS[st].map(id => {
-      const m = SITE_DATA.matches.find(x => String(x.id) === String(id));
-      return m ? [key(m.home), key(m.away)].sort().join("__") : null;
-    }).filter(Boolean);
-  }
-  return {groups, groupWinners, groupRunnersUp, groupThirds, bestThirds, qualifiedR32, R16:r16, QF:qf, SF:sf, Final:finalists, champion, runnerUp, third, pairings};
+  const bestThirds = rankRows(allThirds).slice(0,8).map(r => r.team);
+  const qualifiedTeams = [...Object.values(winners), ...Object.values(runnersUp), ...bestThirds];
+  return {groupStandings, winners, runnersUp, thirds, bestThirds, qualifiedTeams};
 }
-function intersectionCount(a, b){
-  const bs = new Set((b || []).map(key));
-  return (a || []).filter(x => bs.has(key(x))).length;
-}
-function groupStagesComplete(sim){
-  return Object.keys(sim.groupWinners).length === 12 && sim.bestThirds.length === 8;
-}
+function nameEq(a,b){ return key(a) === key(b); }
+function containsTeam(list, team){ return (list || []).some(x => nameEq(x, team)); }
+function actualWinner(g){ return ACTUAL_FACTS.groupStandings[g]?.[0] || null; }
+function actualRunner(g){ return ACTUAL_FACTS.groupStandings[g]?.[1] || null; }
 function bonusForPlayer(name){
-  const predSim = simulateSource(id => scoreFromPrediction(SITE_DATA.predictions[name], id));
-  const actualSim = simulateSource(id => scoreFromReal(id));
-  let bonus = 0;
-  const details = [];
+  const pred = predictionSummary(name);
+  let total = 0;
+  const sections = [];
 
+  const winnerRows = [];
   for (const g of "ABCDEFGHIJKL") {
-    if (actualSim.groupWinners[g]) {
-      if (key(predSim.groupWinners[g]) === key(actualSim.groupWinners[g])) { bonus += BONUS_RULES.groupWinner; details.push(`Winner ${g}: +${BONUS_RULES.groupWinner}`); }
-      if (key(predSim.groupRunnersUp[g]) === key(actualSim.groupRunnersUp[g])) { bonus += BONUS_RULES.groupRunnerUp; details.push(`Runner-up ${g}: +${BONUS_RULES.groupRunnerUp}`); }
-    }
+    const predicted = pred.winners[g];
+    const actual = actualWinner(g);
+    const ok = predicted && actual && nameEq(predicted, actual);
+    const pts = ok ? BONUS_RULES.groupWinner : 0;
+    total += pts;
+    winnerRows.push({group:g, predicted, actual, pts, ok});
   }
-  if (groupStagesComplete(actualSim)) {
-    const bestThirdHits = intersectionCount(predSim.bestThirds, actualSim.bestThirds);
-    bonus += bestThirdHits * BONUS_RULES.bestThird;
-    if (bestThirdHits) details.push(`Best 3rds ${bestThirdHits}: +${bestThirdHits * BONUS_RULES.bestThird}`);
+  sections.push({title:"Group Winners", points:winnerRows.reduce((s,r)=>s+r.pts,0), rows:winnerRows, unit:BONUS_RULES.groupWinner});
 
-    const q32 = intersectionCount(predSim.qualifiedR32, actualSim.qualifiedR32);
-    bonus += q32 * BONUS_RULES.qualified.R32;
-    if (q32) details.push(`R32 qualified ${q32}: +${q32 * BONUS_RULES.qualified.R32}`);
+  const runnerRows = [];
+  for (const g of "ABCDEFGHIJKL") {
+    const predicted = pred.runnersUp[g];
+    const actual = actualRunner(g);
+    const ok = predicted && actual && nameEq(predicted, actual);
+    const pts = ok ? BONUS_RULES.groupRunnerUp : 0;
+    total += pts;
+    runnerRows.push({group:g, predicted, actual, pts, ok});
   }
-  for (const [stage, pts] of Object.entries(BONUS_RULES.qualified).filter(([s]) => s !== "R32")) {
-    const actualSet = actualSim[stage] || [];
-    if (actualSet.length) {
-      const hits = intersectionCount(predSim[stage] || [], actualSet);
-      bonus += hits * pts;
-      if (hits) details.push(`${stage} qualified ${hits}: +${hits * pts}`);
-    }
-  }
+  sections.push({title:"Group Runner-up", points:runnerRows.reduce((s,r)=>s+r.pts,0), rows:runnerRows, unit:BONUS_RULES.groupRunnerUp});
 
-  for (const st of ["R32","R16","QF","SF","third","final"]) {
-    const actualPairs = new Set(actualSim.pairings[st] || []);
-    const hits = (predSim.pairings[st] || []).filter(p => actualPairs.has(p)).length;
-    // Only award pairings for rounds that have at least one actual result available.
-    const hasActualResult = STAGE_IDS[st].some(id => !!scoreFromReal(id));
-    if (hasActualResult && hits) {
-      bonus += hits * BONUS_RULES.bracketPairing;
-      details.push(`${st} pairings ${hits}: +${hits * BONUS_RULES.bracketPairing}`);
-    }
-  }
+  const thirdRows = pred.bestThirds.map(team => {
+    const ok = containsTeam(ACTUAL_FACTS.bestThirdPlacedTeams, team);
+    const pts = ok ? BONUS_RULES.bestThird : 0;
+    total += pts;
+    return {predicted:team, actual: ok ? team : "Not in best 8", pts, ok};
+  });
+  sections.push({title:"Eight Best 3rd Teams", points:thirdRows.reduce((s,r)=>s+r.pts,0), rows:thirdRows, unit:BONUS_RULES.bestThird});
 
-  if (actualSim.champion) {
-    if (key(predSim.champion) === key(actualSim.champion)) bonus += BONUS_RULES.champion;
-    else if ([actualSim.runnerUp, actualSim.third].map(key).includes(key(predSim.champion))) bonus += BONUS_RULES.championAlt;
-  }
-  if (actualSim.runnerUp) {
-    if (key(predSim.runnerUp) === key(actualSim.runnerUp)) bonus += BONUS_RULES.runnerUp;
-    else if ([actualSim.champion, actualSim.third].map(key).includes(key(predSim.runnerUp))) bonus += BONUS_RULES.runnerUpAlt;
-  }
-  if (actualSim.third) {
-    if (key(predSim.third) === key(actualSim.third)) bonus += BONUS_RULES.third;
-    else if ([actualSim.champion, actualSim.runnerUp].map(key).includes(key(predSim.third))) bonus += BONUS_RULES.thirdAlt;
-  }
+  const qualifiedRows = pred.qualifiedTeams.map(team => {
+    const ok = containsTeam(ACTUAL_FACTS.knockoutTeams, team);
+    const pts = ok ? BONUS_RULES.qualifiedTeam : 0;
+    total += pts;
+    return {predicted:team, actual: ok ? "Qualified" : "Not qualified", pts, ok};
+  });
+  sections.push({title:"# of Qualified Teams", points:qualifiedRows.reduce((s,r)=>s+r.pts,0), rows:qualifiedRows, unit:BONUS_RULES.qualifiedTeam});
 
-  return {bonus, details, predSim, actualSim};
+  return {bonus: total, sections, pred};
 }
 
 function baseMatchScoreForPlayer(name){
@@ -673,7 +653,7 @@ function baseMatchScoreForPlayer(name){
     const real = resultForMatch(match);
     if (!real) continue;
     played++;
-    const pts = pointsFor(SITE_DATA.predictions[name][match.id], real);
+    const pts = pointsFor(SITE_DATA.predictions[name][match.id], real, match.group || match.round);
     matchPoints += pts;
     if (pts === 6) exact++;
     if (pts === 4) outcomeOnly++;
@@ -684,27 +664,73 @@ function baseMatchScoreForPlayer(name){
 function leaderboard(){
   const rows = Object.keys(SITE_DATA.predictions).map(name => {
     const base = baseMatchScoreForPlayer(name);
-    return {name, ...base, total: base.matchPoints};
-  }).sort((a,b) => b.matchPoints - a.matchPoints || b.exact - a.exact || b.outcomeOnly - a.outcomeOnly || a.name.localeCompare(b.name));
+    const bonus = bonusForPlayer(name).bonus;
+    return {name, ...base, bonus, total: base.matchPoints + bonus};
+  }).sort((a,b) => b.total - a.total || b.matchPoints - a.matchPoints || b.exact - a.exact || b.outcomeOnly - a.outcomeOnly || a.name.localeCompare(b.name));
   return rows.map((r,i) => ({...r, rank:i+1}));
 }
 
 function renderLeaderboard(){
   const rows = leaderboard();
   el("playersCount").textContent = rows.length;
-  el("topScore").textContent = rows[0]?.matchPoints || 0;
-  el("leaderboard").innerHTML = rows.map(r => `
-    <div class="rank-row ${r.rank<=3?'top':''}">
-      <div class="rank">${r.rank}</div>
-      <div>
-        <div><strong>${r.name}</strong></div>
-        <div class="mini">${r.exact} دقیق، ${r.outcomeOnly} نتیجه درست</div>
-      </div>
-      <div class="points totalpts">${r.matchPoints}</div>
+  el("topScore").textContent = rows[0]?.total || 0;
+  el("leaderboard").innerHTML = `
+    <div class="rank-row header">
+      <div>#</div><div>Player</div><div class="ptscol">Match</div><div class="ptscol">Bonus</div><div class="ptscol">Total</div>
     </div>
-  `).join("");
+    ${rows.map(r => `
+      <div class="rank-row ${r.rank<=3?'top':''}" data-player="${r.name}">
+        <div class="rank">${r.rank}</div>
+        <div>
+          <div><strong>${r.name}</strong></div>
+          <div class="mini">${r.exact} دقیق، ${r.outcomeOnly} نتیجه درست</div>
+        </div>
+        <div class="ptscol matchpts">${r.matchPoints}</div>
+        <div class="ptscol bonuspts">${r.bonus}</div>
+        <div class="ptscol totalpts">${r.total}</div>
+      </div>
+    `).join("")}`;
+  document.querySelectorAll(".rank-row[data-player]").forEach(row => row.addEventListener("click", () => openPlayer(row.dataset.player)));
 }
 
+function bonusSectionHtml(section){
+  const rows = section.rows.map(r => `
+    <tr>
+      <td>${r.group ? `Group ${r.group}` : ""}</td>
+      <td>${r.ok ? "✅" : "❌"} ${r.predicted || "—"}</td>
+      <td>${r.actual || "—"}</td>
+      <td class="p${r.pts ? 6 : 0}">${r.pts}</td>
+    </tr>
+  `).join("");
+  return `
+    <h3 style="margin:18px 0 8px">${section.title} <span class="badge">${section.points} pts</span></h3>
+    <table>
+      <thead><tr><th>Item</th><th>Prediction</th><th>Actual</th><th>Points</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+function openPlayer(name){
+  const base = baseMatchScoreForPlayer(name);
+  const bonus = bonusForPlayer(name);
+  const total = base.matchPoints + bonus.bonus;
+  el("modalTitle").textContent = `${name} — Match ${base.matchPoints} + Bonus ${bonus.bonus} = ${total}`;
+  el("modalBody").innerHTML = `
+    <div class="upcoming-note" style="margin-bottom:14px">
+      امتیاز بازی‌ها فقط از نتایج ثبت‌شده حساب می‌شود. Bonus فعلاً فقط بر اساس پایان مرحله گروهی است: برنده گروه، تیم دوم، ۸ تیم سوم برتر، و تیم‌های صعودکننده به مرحله حذفی.
+    </div>
+    <table style="margin-bottom:16px">
+      <thead><tr><th>Category</th><th>Points</th></tr></thead>
+      <tbody>
+        <tr><td>🎮 Match Points</td><td class="p6">${base.matchPoints}</td></tr>
+        <tr><td>🏆 Bonus Points</td><td class="p4">${bonus.bonus}</td></tr>
+        <tr><td><strong>⭐ Total</strong></td><td class="p6"><strong>${total}</strong></td></tr>
+      </tbody>
+    </table>
+    ${bonus.sections.map(bonusSectionHtml).join("")}
+  `;
+  modal.showModal();
+}
 
 function isUpcomingMatch(m){
   const d = m.dateObj || parseKickoffDate(m.date);
@@ -767,7 +793,7 @@ function matchCard(m){
   const real = m.real || resultForMatch(m);
   const score = real ? `${real.homeScore} - ${real.awayScore}` : "vs";
   const scoring = getDisplayScoring(m);
-  const best = scoring ? Object.keys(SITE_DATA.predictions).filter(p => pointsFor(SITE_DATA.predictions[p][scoring.match.id], scoring.real) === 6).length : 0;
+  const best = scoring ? Object.keys(SITE_DATA.predictions).filter(p => pointsFor(SITE_DATA.predictions[p][scoring.match.id], scoring.real, scoring.match.group || scoring.match.round) === 6).length : 0;
   const statusText = real ? "FT / Scored" : (isUpcomingMatch(m) ? "Upcoming" : "No result yet");
   const scoreChip = real && !scoring ? `<span class="chip">این matchup در پیش‌بینی‌ها نبود؛ امتیاز بازی حساب نمی‌شود</span>` : `<span class="chip">${best} نفر نتیجه دقیق</span>`;
   return `
@@ -806,7 +832,7 @@ function openMatch(id){
     const rawPred = SITE_DATA.predictions[name][scoring.match.id] || "—";
     const p = parseScore(rawPred);
     const shownPred = scoring.flipped && p ? `${p[1]}-${p[0]}` : rawPred;
-    const pts = scoring.real ? pointsFor(rawPred, scoring.real) : "—";
+    const pts = scoring.real ? pointsFor(rawPred, scoring.real, scoring.match.group || scoring.match.round) : "—";
     return {name, pred:shownPred, pts};
   }).sort((a,b) => {
     const bp = Number.isFinite(Number(b.pts)) ? Number(b.pts) : -1;
