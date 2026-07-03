@@ -158,7 +158,8 @@ const QF_LEFT=[["97","89","90"],["98","93","94"]], QF_RIGHT=[["99","91","92"],["
 const API_RESULTS_URL='https://wcup2026.org/api/data.php?action=results&limit=250';
 const MANUAL_RESULT_OVERRIDES={
   "74":{homeScore:1,awayScore:1,home:"Germany",away:"Paraguay",wentPenalties:true,penaltyHome:3,penaltyAway:4,penaltyWinner:"Paraguay",winner:"Paraguay",source:"manual override"},
-  "75":{homeScore:1,awayScore:1,home:"Netherlands",away:"Morocco",wentPenalties:true,penaltyHome:2,penaltyAway:3,penaltyWinner:"Morocco",winner:"Morocco",source:"manual override"}
+  "75":{homeScore:1,awayScore:1,home:"Netherlands",away:"Morocco",wentPenalties:true,penaltyHome:2,penaltyAway:3,penaltyWinner:"Morocco",winner:"Morocco",source:"manual override"},
+  "88":{homeScore:1,awayScore:1,home:"Australia",away:"Egypt",wentPenalties:true,penaltyHome:2,penaltyAway:4,penaltyWinner:"Egypt",winner:"Egypt",source:"manual override"}
 };
 let API_RESULTS_BY_MATCH_ID={};
 let API_LOADED=false;
@@ -226,11 +227,44 @@ function flag(t){const c=countryCodeMap[norm(t)];return c?`<img class="flag" src
 function parseScore(s){let m=String(s||'').match(/(\d+)\s*[-:–]\s*(\d+)/);return m?[+m[1],+m[2]]:null} function outcome(a,b){return a>b?'H':a<b?'A':'D'} function nameEq(a,b){return key(a)===key(b)}
 function predObj(name,id){return DATA.players[name]?.[String(id)]||null} function scoreText(p){return p?.score||'—'} function real(id){const k=String(id); if(MANUAL_RESULT_OVERRIDES[k])return MANUAL_RESULT_OVERRIDES[k]; if(API_RESULTS_BY_MATCH_ID[k])return API_RESULTS_BY_MATCH_ID[k]; if(!API_LOADED)return DATA.actualResults[k]||null; return +k<=72 ? (DATA.actualResults[k]||null) : null} function isKO(id){return +id>=73}
 function sideFromPenaltyWinner(w,home,away){if(!w)return null; if(nameEq(w,home))return 'H'; if(nameEq(w,away))return 'A'; return null}
-function predWinnerSide(p){const s=parseScore(p?.score); if(!s)return null; if(s[0]!==s[1])return outcome(s[0],s[1]); return sideFromPenaltyWinner(p.penaltyWinner,p.homeTeam,p.awayTeam)}
+function predPenaltySide(p){
+  if(!p?.penaltyWinner)return null;
+  // In knockout slots, the predicted team names may be old/stale, but their POSITION matters.
+  // Example: if a player wrote "Iran" as the second team in this slot, and the real slot is now Egypt,
+  // treat that as "Egypt" because both are the away/second side of the same bracket slot.
+  let side=sideFromPenaltyWinner(p.penaltyWinner,p.homeTeam,p.awayTeam);
+  return side || null;
+}
+function predWinnerSide(p,m){const s=parseScore(p?.score); if(!s)return null; if(s[0]!==s[1])return outcome(s[0],s[1]); return predPenaltySide(p)}
 function realWinnerSide(r,m){if(!r)return null; if(r.penaltyWinner)return sideFromPenaltyWinner(r.penaltyWinner,r.home||m.home,r.away||m.away); return outcome(+r.homeScore,+r.awayScore)}
-function pointsFor(p,r,m){if(!p||!r)return 0; const ps=parseScore(p.score); if(!ps)return 0; const rs=[+r.homeScore,+r.awayScore]; if(!isKO(m.id)){ if(ps[0]===rs[0]&&ps[1]===rs[1])return 6; return outcome(ps[0],ps[1])===outcome(rs[0],rs[1])?4:0; } const pw=predWinnerSide(p), rw=realWinnerSide(r,m); if(!pw||!rw||pw!==rw)return 0; if(ps[0]===rs[0]&&ps[1]===rs[1])return 6; if((ps[0]-ps[1])===(rs[0]-rs[1]))return 4; return 2;}
+function pointsFor(p,r,m){
+  if(!p||!r)return 0; const ps=parseScore(p.score); if(!ps)return 0; const rs=[+r.homeScore,+r.awayScore];
+  if(!isKO(m.id)){ if(ps[0]===rs[0]&&ps[1]===rs[1])return 6; return outcome(ps[0],ps[1])===outcome(rs[0],rs[1])?4:0; }
+  const rw=realWinnerSide(r,m); if(!rw)return 0;
+  if(r.wentPenalties || r.penaltyWinner){
+    const predTie=ps[0]===ps[1];
+    const penSide=predPenaltySide(p);
+    if(predTie && penSide){
+      if(penSide!==rw)return 0;
+      return (ps[0]===rs[0]&&ps[1]===rs[1]) ? 6 : 4;
+    }
+    const normalSide=outcome(ps[0],ps[1]);
+    return normalSide===rw ? 2 : 0;
+  }
+  const pw=predWinnerSide(p,m); if(!pw||pw!==rw)return 0;
+  if(ps[0]===rs[0]&&ps[1]===rs[1])return 6;
+  if((ps[0]-ps[1])===(rs[0]-rs[1]))return 4;
+  return 2;
+}
 function fmtReal(r){if(!r)return 'vs'; let t=`${r.homeScore} - ${r.awayScore}`; if(r.wentPenalties)t+=` <span class="pen">پن: ${r.penaltyHome}-${r.penaltyAway}</span>`; return t}
-function fmtPred(p){if(!p)return '—'; let t=scoreText(p); if(p.penaltyWinner)t+=` <span class="pen">پن: ${p.penaltyWinner}</span>`; return t}
+function penaltyDisplayName(p,m){
+  if(!p?.penaltyWinner)return null;
+  const side=predPenaltySide(p);
+  if(side==='H')return m?.home || p.homeTeam || p.penaltyWinner;
+  if(side==='A')return m?.away || p.awayTeam || p.penaltyWinner;
+  return p.penaltyWinner;
+}
+function fmtPred(p,m=null){if(!p)return '—'; let t=scoreText(p); const pen=penaltyDisplayName(p,m); if(pen)t+=` <span class="pen">پن: ${pen}</span>`; return t}
 function addRow(tab,t){if(!tab[t])tab[t]={team:t,pts:0,gf:0,ga:0,gd:0,w:0,d:0,l:0,played:0};return tab[t]} function rankRows(rows){return [...rows].sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.gf-a.gf||a.team.localeCompare(b.team))}
 function groupTable(name,g){const tab={}; DATA.matches.filter(m=>m.group===g&&+m.id<=72).forEach(m=>{addRow(tab,m.home);addRow(tab,m.away); const p=predObj(name,m.id), s=parseScore(p?.score); if(!s)return; const H=addRow(tab,m.home), A=addRow(tab,m.away); H.gf+=s[0];H.ga+=s[1];A.gf+=s[1];A.ga+=s[0];H.gd=H.gf-H.ga;A.gd=A.gf-A.ga;H.played++;A.played++; if(s[0]>s[1]){H.pts+=3;H.w++;A.l++} else if(s[0]<s[1]){A.pts+=3;A.w++;H.l++} else{H.pts++;A.pts++;H.d++;A.d++} }); return rankRows(Object.values(tab))}
 function predictionSummary(name){const winners={}, runners={}, thirds=[], qualified=[]; for(const g of 'ABCDEFGHIJKL'){const rows=groupTable(name,g); if(rows[0]){winners[g]=rows[0].team;qualified.push(rows[0].team)} if(rows[1]){runners[g]=rows[1].team;qualified.push(rows[1].team)} if(rows[2])thirds.push({...rows[2],group:g})} const bestThirds=rankRows(thirds).slice(0,8).map(x=>x.team); qualified.push(...bestThirds); return {winners,runners,bestThirds,qualified}}
@@ -273,8 +307,8 @@ function matchLocalParts(m){const x=String(m.date||'').match(/(\d{4})-(\d{2})-(\
 function todayWindow(){const now=norwayParts(); const base=now.hour<9?addDaysLocal(now,-1):now; const next=addDaysLocal(base,1); return {start:localKey({...base,hour:0,minute:0}),end:localKey({...next,hour:9,minute:0})}}
 function inTodayWindow(m){const dm=displayMatch(m); const w=todayWindow(); const k=localKey(matchLocalParts(dm)); return k>=w.start && k<w.end;}
 function renderMatches(){const q=el('search').value.toLowerCase().trim(), f=el('filter').value; let arr=DATA.matches.filter(m=>f==='all'||(f==='today'&&inTodayWindow(m))||(f==='finished'&&real(m.id))||(f==='r32'&&m.group==='R32')); arr=arr.filter(m=>!q||`${m.home} ${m.away} ${m.group} ${Object.keys(DATA.players).join(' ')}`.toLowerCase().includes(q)); arr.sort((a,b)=>localKey(matchLocalParts(displayMatch(a)))-localKey(matchLocalParts(displayMatch(b)))); el('matches').innerHTML=arr.map(matchCard).join('')||'<div class="card" style="padding:16px">چیزی پیدا نشد.</div>'; document.querySelectorAll('[data-m]').forEach(x=>x.onclick=()=>openMatch(x.dataset.m))}
-function openMatch(id){const m=matchById(id), r=real(id); el('modalTitle').innerHTML=`${m.home} vs ${m.away} ${r?'— '+fmtReal(r):''}`; let rows=Object.keys(DATA.players).map(name=>{const p=predObj(name,id), pts=pointsFor(p,r,m); return {name,p,pts}}).sort((a,b)=>b.pts-a.pts||a.name.localeCompare(b.name)); el('modalBody').innerHTML=`<p class="mini" style="direction:rtl;text-align:right">برای بازی‌های حذفی، اگر بازی به پنالتی رفته باشد، برنده پنالتی هم در امتیازدهی محاسبه می‌شود. قوانین حذفی: ۶ نتیجه و گل دقیق، ۴ تفاضل/تساوی درست با برنده درست، ۲ فقط تیم صعودکننده.</p><table class="match-pred-table"><thead><tr><th>Player</th><th>Prediction</th><th>Points</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${x.name}</td><td>${fmtPred(x.p)}</td><td class="p${x.pts}">${r?x.pts:'—'}</td></tr>`).join('')}</tbody></table>`; modal.showModal()}
-function openPlayer(name){const s=scorePlayer(name), b=bonusFor(name); const matchRows=DATA.matches.filter(m=>real(m.id)).map(m=>{const p=predObj(name,m.id), r=real(m.id), pts=pointsFor(p,r,m); return `<tr><td>#${m.id}</td><td>${m.home} - ${m.away}</td><td>${fmtReal(r)}</td><td>${fmtPred(p)}</td><td class="p${pts}">${pts}</td></tr>`}).join(''); const bonusRows=b.sections.map(sec=>`<h3>${sec[0]}</h3><table><thead><tr><th>Item</th><th>Prediction</th><th>Actual</th><th>Pts</th></tr></thead><tbody>${sec[1].map(r=>`<tr><td>${r[0]}</td><td>${r[4]?'✅':'❌'} ${r[1]||'—'}</td><td>${r[2]}</td><td class="p${r[3]?6:0}">${r[3]}</td></tr>`).join('')}</tbody></table>`).join(''); el('modalTitle').textContent=`${name} — Match ${s.match} + Bonus ${s.bonus} = ${s.total}`; el('modalBody').innerHTML=`<div class="tabs"><button onclick="tab('matches')">Matches</button><button onclick="tab('bonus')">Bonus</button></div><div id="tab-matches"><table><thead><tr><th>#</th><th>Match</th><th>Actual</th><th>Prediction</th><th>Pts</th></tr></thead><tbody>${matchRows}</tbody></table></div><div id="tab-bonus" class="hide">${bonusRows}</div>`; modal.showModal()}
+function openMatch(id){const m=matchById(id), r=real(id); el('modalTitle').innerHTML=`${m.home} vs ${m.away} ${r?'— '+fmtReal(r):''}`; let rows=Object.keys(DATA.players).map(name=>{const p=predObj(name,id), pts=pointsFor(p,r,m); return {name,p,pts}}).sort((a,b)=>b.pts-a.pts||a.name.localeCompare(b.name)); el('modalBody').innerHTML=`<p class="mini" style="direction:rtl;text-align:right">برای بازی‌های حذفی، اگر بازی به پنالتی رفته باشد، برنده پنالتی هم در امتیازدهی محاسبه می‌شود. قوانین حذفی: ۶ نتیجه و گل دقیق، ۴ تفاضل/تساوی درست با برنده درست، ۲ فقط تیم صعودکننده.</p><table class="match-pred-table"><thead><tr><th>Player</th><th>Prediction</th><th>Points</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${x.name}</td><td>${fmtPred(x.p,m)}</td><td class="p${x.pts}">${r?x.pts:'—'}</td></tr>`).join('')}</tbody></table>`; modal.showModal()}
+function openPlayer(name){const s=scorePlayer(name), b=bonusFor(name); const matchRows=DATA.matches.filter(m=>real(m.id)).map(m=>{const p=predObj(name,m.id), r=real(m.id), pts=pointsFor(p,r,m); return `<tr><td>#${m.id}</td><td>${m.home} - ${m.away}</td><td>${fmtReal(r)}</td><td>${fmtPred(p,m)}</td><td class="p${pts}">${pts}</td></tr>`}).join(''); const bonusRows=b.sections.map(sec=>`<h3>${sec[0]}</h3><table><thead><tr><th>Item</th><th>Prediction</th><th>Actual</th><th>Pts</th></tr></thead><tbody>${sec[1].map(r=>`<tr><td>${r[0]}</td><td>${r[4]?'✅':'❌'} ${r[1]||'—'}</td><td>${r[2]}</td><td class="p${r[3]?6:0}">${r[3]}</td></tr>`).join('')}</tbody></table>`).join(''); el('modalTitle').textContent=`${name} — Match ${s.match} + Bonus ${s.bonus} = ${s.total}`; el('modalBody').innerHTML=`<div class="tabs"><button onclick="tab('matches')">Matches</button><button onclick="tab('bonus')">Bonus</button></div><div id="tab-matches"><table><thead><tr><th>#</th><th>Match</th><th>Actual</th><th>Prediction</th><th>Pts</th></tr></thead><tbody>${matchRows}</tbody></table></div><div id="tab-bonus" class="hide">${bonusRows}</div>`; modal.showModal()}
 function tab(x){el('tab-matches').classList.toggle('hide',x!=='matches');el('tab-bonus').classList.toggle('hide',x!=='bonus')} window.tab=tab;
 el('search').oninput=renderMatches; el('filter').onchange=renderMatches; renderLeaderboard(); renderMatches(); renderFlagBracket(); loadApiResults();
 </script></body></html>
