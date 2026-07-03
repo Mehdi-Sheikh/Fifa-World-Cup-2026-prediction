@@ -6,7 +6,7 @@
 <title>World Cup 2026 Prediction League</title>
 <style>
 :root{--bg:#07111f;--card:#102036;--muted:#9fb0c8;--text:#edf5ff;--line:#23405f;--gold:#ffd166;--green:#6ee7b7;--red:#fb7185;--blue:#93c5fd}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#11294a,#07111f 45%);font-family:Tahoma,Arial,sans-serif;color:var(--text)}
+*{box-sizing:border-box}html,body{max-width:100%;overflow-x:hidden}body{margin:0;background:radial-gradient(circle at top,#11294a,#07111f 45%);font-family:Tahoma,Arial,sans-serif;color:var(--text)}
 .wrap{max-width:1250px;margin:auto;padding:22px}.hero{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;margin-bottom:18px}
 h1{margin:0;font-size:28px}.sub{color:var(--muted);font-size:13px;margin-top:6px;line-height:1.8}.stats{display:flex;gap:8px;flex-wrap:wrap}.pill{background:#0d1b2f;border:1px solid var(--line);border-radius:999px;padding:8px 12px;color:#dcecff;font-size:13px}
 .controls{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}input,select,button{border:1px solid var(--line);background:#0c1a2e;color:var(--text);border-radius:12px;padding:10px 12px}button{cursor:pointer}
@@ -19,7 +19,7 @@ h1{margin:0;font-size:28px}.sub{color:var(--muted);font-size:13px;margin-top:6px
 .match-head,.match-foot{display:flex;justify-content:space-between;gap:8px;align-items:center;color:var(--muted);font-size:12px;flex-wrap:wrap}.teams{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin:14px 0}
 .team{display:flex;align-items:center;gap:8px}.team.away{justify-content:flex-end}.score{font-size:22px;font-weight:900;background:#081527;border:1px solid var(--line);border-radius:12px;padding:8px 10px;min-width:68px;text-align:center}.flag{width:30px;height:22px;object-fit:cover;border-radius:4px;box-shadow:0 0 0 1px rgba(255,255,255,.18)}
 .chip,.badge{border:1px solid var(--line);background:#081527;border-radius:999px;padding:5px 8px;color:#cfe3ff;font-size:12px}.pen{color:#fbbf24}.ok{color:var(--green)}.bad{color:var(--red)}
-dialog{width:min(960px,96vw);max-height:86vh;background:#09182b;color:var(--text);border:1px solid var(--line);border-radius:18px;padding:0}dialog::backdrop{background:rgba(0,0,0,.65)}.modal-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}.x{font-size:18px;padding:6px 10px}.modal-body{padding:16px;overflow:auto;max-height:75vh}
+dialog{width:min(960px,calc(100vw - 12px));max-height:86vh;background:#09182b;color:var(--text);border:1px solid var(--line);border-radius:18px;padding:0}dialog::backdrop{background:rgba(0,0,0,.65)}.modal-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}.x{font-size:18px;padding:6px 10px}.modal-body{padding:16px;overflow:auto;max-height:75vh}
 table{width:100%;border-collapse:collapse;font-size:13px;direction:ltr;text-align:left}th,td{padding:9px;border-bottom:1px solid rgba(255,255,255,.08)}th{color:#b7c9e1;background:#0b192b;position:sticky;top:0}.p0{color:#8998ad}.p2{color:#d8b4fe}.p4{color:#93c5fd}.p6{color:#6ee7b7;font-weight:bold}.tabs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}.hide{display:none}
 
 /* Bracket view */
@@ -59,8 +59,13 @@ table{width:100%;border-collapse:collapse;font-size:13px;direction:ltr;text-alig
   dialog{width:98vw;max-height:92vh;border-radius:14px;}
   .modal-head{padding:10px 12px;}
   .modal-body{padding:10px;max-height:80vh;overflow:auto;}
-  table{font-size:11px;min-width:620px;}
+  table{font-size:11px;min-width:0;width:100%;table-layout:fixed;}
+  th,td{padding:7px 4px;white-space:normal;word-break:break-word;overflow-wrap:anywhere;}
+  .modal-body{overflow-x:hidden;}
   .modal-body table{display:table;}
+  .modal-body table th:nth-child(1),.modal-body table td:nth-child(1){width:30%;}
+  .modal-body table th:nth-child(2),.modal-body table td:nth-child(2){width:48%;}
+  .modal-body table th:nth-child(3),.modal-body table td:nth-child(3){width:22%;text-align:center;}
   .bracket-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
   .bracket-board{min-width:980px;gap:10px;padding-bottom:12px;}
   .bracket-title{padding:16px 10px 8px;}
@@ -70,6 +75,17 @@ table{width:100%;border-collapse:collapse;font-size:13px;direction:ltr;text-alig
   .trophy{font-size:46px;}
 }
 
+
+.match-pred-table{table-layout:fixed}
+.match-pred-table th:nth-child(1),.match-pred-table td:nth-child(1){width:34%}
+.match-pred-table th:nth-child(2),.match-pred-table td:nth-child(2){width:46%;text-align:center}
+.match-pred-table th:nth-child(3),.match-pred-table td:nth-child(3){width:20%;text-align:center}
+@media(max-width:520px){
+  dialog{width:calc(100vw - 8px);border-radius:14px;}
+  .modal-body{padding:8px;}
+  .match-pred-table{font-size:10.5px;}
+  .match-pred-table th,.match-pred-table td{padding:7px 3px;}
+}
 </style></head><body><div class="wrap">
 <div class="hero"><div><h1>🏆 کل‌کل جام جهانی ۲۰۲۶</h1><div class="sub">داده‌ی اصلی سایت از JSON جدید ساخته شده؛ فقط نتایج دستیِ مشخص‌شده ثابت می‌مانند؛ بقیه نتایج به‌صورت خودکار از API خوانده می‌شوند.</div></div><div class="stats"><span class="pill" id="playersCount"></span><span class="pill" id="scoredCount"></span><span class="pill">Knockout scoring: 6 / 4 / 2</span></div></div>
 <div class="controls"><input id="search" placeholder="جستجوی تیم یا بازیکن..." style="min-width:260px"><select id="filter"><option value="today" selected>بازی‌های امروز تا فردا ۰۹:۰۰</option><option value="finished">بازی‌های نتیجه‌دار</option><option value="all">همه بازی‌ها</option><option value="r32">فقط R32</option></select></div>
@@ -179,7 +195,7 @@ function matchLocalParts(m){const x=String(m.date||'').match(/(\d{4})-(\d{2})-(\
 function todayWindow(){const now=norwayParts(); const base=now.hour<9?addDaysLocal(now,-1):now; const next=addDaysLocal(base,1); return {start:localKey({...base,hour:0,minute:0}),end:localKey({...next,hour:9,minute:0})}}
 function inTodayWindow(m){const dm=displayMatch(m); const w=todayWindow(); const k=localKey(matchLocalParts(dm)); return k>=w.start && k<w.end;}
 function renderMatches(){const q=el('search').value.toLowerCase().trim(), f=el('filter').value; let arr=DATA.matches.filter(m=>f==='all'||(f==='today'&&inTodayWindow(m))||(f==='finished'&&real(m.id))||(f==='r32'&&m.group==='R32')); arr=arr.filter(m=>!q||`${m.home} ${m.away} ${m.group} ${Object.keys(DATA.players).join(' ')}`.toLowerCase().includes(q)); arr.sort((a,b)=>localKey(matchLocalParts(displayMatch(a)))-localKey(matchLocalParts(displayMatch(b)))); el('matches').innerHTML=arr.map(matchCard).join('')||'<div class="card" style="padding:16px">چیزی پیدا نشد.</div>'; document.querySelectorAll('[data-m]').forEach(x=>x.onclick=()=>openMatch(x.dataset.m))}
-function openMatch(id){const m=matchById(id), r=real(id); el('modalTitle').innerHTML=`${m.home} vs ${m.away} ${r?'— '+fmtReal(r):''}`; let rows=Object.keys(DATA.players).map(name=>{const p=predObj(name,id), pts=pointsFor(p,r,m); return {name,p,pts}}).sort((a,b)=>b.pts-a.pts||a.name.localeCompare(b.name)); el('modalBody').innerHTML=`<p class="mini" style="direction:rtl;text-align:right">برای بازی‌های حذفی، اگر بازی به پنالتی رفته باشد، برنده پنالتی هم در امتیازدهی محاسبه می‌شود. قوانین حذفی: ۶ نتیجه و گل دقیق، ۴ تفاضل/تساوی درست با برنده درست، ۲ فقط تیم صعودکننده.</p><table><thead><tr><th>Player</th><th>Prediction</th><th>Points</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${x.name}</td><td>${fmtPred(x.p)}</td><td class="p${x.pts}">${r?x.pts:'—'}</td></tr>`).join('')}</tbody></table>`; modal.showModal()}
+function openMatch(id){const m=matchById(id), r=real(id); el('modalTitle').innerHTML=`${m.home} vs ${m.away} ${r?'— '+fmtReal(r):''}`; let rows=Object.keys(DATA.players).map(name=>{const p=predObj(name,id), pts=pointsFor(p,r,m); return {name,p,pts}}).sort((a,b)=>b.pts-a.pts||a.name.localeCompare(b.name)); el('modalBody').innerHTML=`<p class="mini" style="direction:rtl;text-align:right">برای بازی‌های حذفی، اگر بازی به پنالتی رفته باشد، برنده پنالتی هم در امتیازدهی محاسبه می‌شود. قوانین حذفی: ۶ نتیجه و گل دقیق، ۴ تفاضل/تساوی درست با برنده درست، ۲ فقط تیم صعودکننده.</p><table class="match-pred-table"><thead><tr><th>Player</th><th>Prediction</th><th>Points</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${x.name}</td><td>${fmtPred(x.p)}</td><td class="p${x.pts}">${r?x.pts:'—'}</td></tr>`).join('')}</tbody></table>`; modal.showModal()}
 function openPlayer(name){const s=scorePlayer(name), b=bonusFor(name); const matchRows=DATA.matches.filter(m=>real(m.id)).map(m=>{const p=predObj(name,m.id), r=real(m.id), pts=pointsFor(p,r,m); return `<tr><td>#${m.id}</td><td>${m.home} - ${m.away}</td><td>${fmtReal(r)}</td><td>${fmtPred(p)}</td><td class="p${pts}">${pts}</td></tr>`}).join(''); const bonusRows=b.sections.map(sec=>`<h3>${sec[0]}</h3><table><thead><tr><th>Item</th><th>Prediction</th><th>Actual</th><th>Pts</th></tr></thead><tbody>${sec[1].map(r=>`<tr><td>${r[0]}</td><td>${r[4]?'✅':'❌'} ${r[1]||'—'}</td><td>${r[2]}</td><td class="p${r[3]?6:0}">${r[3]}</td></tr>`).join('')}</tbody></table>`).join(''); el('modalTitle').textContent=`${name} — Match ${s.match} + Bonus ${s.bonus} = ${s.total}`; el('modalBody').innerHTML=`<div class="tabs"><button onclick="tab('matches')">Matches</button><button onclick="tab('bonus')">Bonus</button></div><div id="tab-matches"><table><thead><tr><th>#</th><th>Match</th><th>Actual</th><th>Prediction</th><th>Pts</th></tr></thead><tbody>${matchRows}</tbody></table></div><div id="tab-bonus" class="hide">${bonusRows}</div>`; modal.showModal()}
 function tab(x){el('tab-matches').classList.toggle('hide',x!=='matches');el('tab-bonus').classList.toggle('hide',x!=='bonus')} window.tab=tab;
 el('search').oninput=renderMatches; el('filter').onchange=renderMatches; renderLeaderboard(); renderMatches(); loadApiResults();
