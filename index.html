@@ -117,8 +117,8 @@ table{width:100%;border-collapse:collapse;font-size:13px;direction:ltr;text-alig
 @media(max-width:380px){.ko-node{width:28px;min-height:41px}.ko-node .flag,.ko-node .flag-slot{width:18px;height:13px}.ko-score{font-size:7px;bottom:-10px}.ko-cup{font-size:32px}}
 
 </style></head><body><div class="wrap">
-<div class="hero"><div><h1>🏆 کل‌کل جام جهانی ۲۰۲۶</h1><div class="sub">داده‌ی اصلی سایت از JSON جدید ساخته شده؛ فقط نتایج دستیِ مشخص‌شده ثابت می‌مانند؛ بقیه نتایج به‌صورت خودکار از API خوانده می‌شوند.</div></div><div class="stats"><span class="pill" id="playersCount"></span><span class="pill" id="scoredCount"></span><span class="pill">Knockout scoring: 6 / 4 / 2</span></div></div>
-<div class="controls"><input id="search" placeholder="جستجوی تیم یا بازیکن..." style="min-width:260px"><select id="filter"><option value="today" selected>بازی‌های امروز تا فردا ۰۹:۰۰</option><option value="finished">بازی‌های نتیجه‌دار</option><option value="all">همه بازی‌ها</option><option value="r32">فقط R32</option></select></div>
+<div class="hero"><div><h1>🏆 کل‌کل جام جهانی ۲۰۲۶</h1><div class="sub">داده‌ی اصلی سایت از JSON جدید ساخته شده؛ فقط نتایج دستیِ مشخص‌شده ثابت می‌مانند؛ بقیه نتایج به‌صورت خودکار از API خوانده می‌شوند.</div></div><div class="stats"><span class="pill" id="playersCount"></span><span class="pill" id="scoredCount"></span><span class="pill">R32: 6/4/2 · R16: 12/8/6</span></div></div>
+<div class="controls"><input id="search" placeholder="جستجوی تیم یا بازیکن..." style="min-width:260px"><select id="filter"><option value="today" selected>بازی‌های امروز تا فردا ۰۹:۰۰</option><option value="finished">بازی‌های نتیجه‌دار</option><option value="all">همه بازی‌ها</option><option value="r32">فقط R32</option><option value="r16">فقط R16</option></select></div>
 <section class="grid"><aside class="card"><div class="section-title"><h2>جدول کلی</h2><span class="badge">Match + Bonus</span></div><div id="leaderboard"></div></aside><main class="main-stack"><section class="card matches-card"><div class="section-title"><h2>بازی‌ها</h2><span class="badge">فیلتر امروز: ۰۰:۰۰ تا ۰۹:۰۰ فردا به وقت نروژ</span></div><div id="matches" class="matches"></div></section></main></section>
 <section class="card flag-bracket-card"><div class="section-title"><h2>براکت حذفی</h2><span class="badge">فقط پرچم‌ها</span></div><div id="flagBracket" class="flag-bracket"></div></section>
 
@@ -147,7 +147,15 @@ const ACTUAL_KO_MATCHES={
  "85":{home:"Switzerland",away:"Algeria",date:"2026-07-03T05:00:00+02:00"},
  "86":{home:"Argentina",away:"Cabo Verde",date:"2026-07-04T00:00:00+02:00"},
  "87":{home:"Portugal",away:"Croatia",date:"2026-07-03T01:00:00+02:00"},
- "88":{home:"Australia",away:"Egypt",date:"2026-07-03T20:00:00+02:00"}
+ "88":{home:"Australia",away:"Egypt",date:"2026-07-03T20:00:00+02:00"},
+ "89":{home:"Paraguay",away:"France",date:"2026-07-04T23:00:00+02:00",stage:"R16"},
+ "90":{home:"Canada",away:"Morocco",date:"2026-07-04T19:00:00+02:00",stage:"R16"},
+ "91":{home:"Brazil",away:"Norway",date:"2026-07-05T22:00:00+02:00",stage:"R16"},
+ "92":{home:"Mexico",away:"England",date:"2026-07-06T02:00:00+02:00",stage:"R16"},
+ "93":{home:"Colombia",away:"Spain",date:"2026-07-07T22:00:00+02:00",stage:"R16"},
+ "94":{home:"USA",away:"Belgium",date:"2026-07-07T02:00:00+02:00",stage:"R16"},
+ "95":{home:"Argentina",away:"Egypt",date:"2026-07-07T18:00:00+02:00",stage:"R16"},
+ "96":{home:"Switzerland",away:"Portugal",date:"2026-07-07T22:00:00+02:00",stage:"R16"}
 };
 const BRACKET_SIDE_LEFT=["74","77","73","75","83","84","81","82"];
 const BRACKET_SIDE_RIGHT=["76","78","79","80","86","88","85","87"];
@@ -159,6 +167,7 @@ const API_RESULTS_URL='https://wcup2026.org/api/data.php?action=results&limit=25
 const MANUAL_RESULT_OVERRIDES={
   "74":{homeScore:1,awayScore:1,home:"Germany",away:"Paraguay",wentPenalties:true,penaltyHome:3,penaltyAway:4,penaltyWinner:"Paraguay",winner:"Paraguay",source:"manual override"},
   "75":{homeScore:1,awayScore:1,home:"Netherlands",away:"Morocco",wentPenalties:true,penaltyHome:2,penaltyAway:3,penaltyWinner:"Morocco",winner:"Morocco",source:"manual override"},
+  "82":{homeScore:3,awayScore:2,home:"Belgium",away:"Senegal",wentExtraTime:true,winner:"Belgium",source:"manual override"},
   "88":{homeScore:1,awayScore:1,home:"Australia",away:"Egypt",wentPenalties:true,penaltyHome:2,penaltyAway:4,penaltyWinner:"Egypt",winner:"Egypt",source:"manual override"}
 };
 let API_RESULTS_BY_MATCH_ID={};
@@ -182,6 +191,7 @@ function koResultBadge(matchId){
   if(!r)return '';
   const base=`${r.homeScore}-${r.awayScore}`;
   if(r.wentPenalties)return `<span class="ko-score penalty">${base} · ${r.penaltyHome}-${r.penaltyAway}p</span>`;
+  if(r.wentExtraTime)return `<span class="ko-score penalty">${base} ET</span>`;
   return `<span class="ko-score">${base}</span>`;
 }
 function koNode(matchId,a,b,x,y,cls=''){
@@ -237,26 +247,34 @@ function predPenaltySide(p){
 }
 function predWinnerSide(p,m){const s=parseScore(p?.score); if(!s)return null; if(s[0]!==s[1])return outcome(s[0],s[1]); return predPenaltySide(p)}
 function realWinnerSide(r,m){if(!r)return null; if(r.penaltyWinner)return sideFromPenaltyWinner(r.penaltyWinner,r.home||m.home,r.away||m.away); return outcome(+r.homeScore,+r.awayScore)}
+function koScoreValues(id){
+  const n=+id;
+  // R32: exact 6, diff 4, winner 2. R16: exact 12, diff 8, winner 6.
+  // If a knockout match goes to penalties: exact draw + penalty winner = exact, draw + penalty winner = diff, qualified team only = penWinnerOnly.
+  if(n>=89 && n<=96) return {exact:12,diff:8,winner:6,penWinnerOnly:4};
+  return {exact:6,diff:4,winner:2,penWinnerOnly:2};
+}
 function pointsFor(p,r,m){
   if(!p||!r)return 0; const ps=parseScore(p.score); if(!ps)return 0; const rs=[+r.homeScore,+r.awayScore];
   if(!isKO(m.id)){ if(ps[0]===rs[0]&&ps[1]===rs[1])return 6; return outcome(ps[0],ps[1])===outcome(rs[0],rs[1])?4:0; }
+  const vals=koScoreValues(m.id);
   const rw=realWinnerSide(r,m); if(!rw)return 0;
   if(r.wentPenalties || r.penaltyWinner){
     const predTie=ps[0]===ps[1];
     const penSide=predPenaltySide(p);
     if(predTie && penSide){
       if(penSide!==rw)return 0;
-      return (ps[0]===rs[0]&&ps[1]===rs[1]) ? 6 : 4;
+      return (ps[0]===rs[0]&&ps[1]===rs[1]) ? vals.exact : vals.diff;
     }
     const normalSide=outcome(ps[0],ps[1]);
-    return normalSide===rw ? 2 : 0;
+    return normalSide===rw ? vals.penWinnerOnly : 0;
   }
   const pw=predWinnerSide(p,m); if(!pw||pw!==rw)return 0;
-  if(ps[0]===rs[0]&&ps[1]===rs[1])return 6;
-  if((ps[0]-ps[1])===(rs[0]-rs[1]))return 4;
-  return 2;
+  if(ps[0]===rs[0]&&ps[1]===rs[1])return vals.exact;
+  if((ps[0]-ps[1])===(rs[0]-rs[1]))return vals.diff;
+  return vals.winner;
 }
-function fmtReal(r){if(!r)return 'vs'; let t=`${r.homeScore} - ${r.awayScore}`; if(r.wentPenalties)t+=` <span class="pen">پن: ${r.penaltyHome}-${r.penaltyAway}</span>`; return t}
+function fmtReal(r){if(!r)return 'vs'; let t=`${r.homeScore} - ${r.awayScore}`; if(r.wentPenalties)t+=` <span class="pen">پن: ${r.penaltyHome}-${r.penaltyAway}</span>`; if(r.wentExtraTime)t+=` <span class="pen">وقت اضافه</span>`; return t}
 function penaltyDisplayName(p,m){
   if(!p?.penaltyWinner)return null;
   const side=predPenaltySide(p);
@@ -268,7 +286,33 @@ function fmtPred(p,m=null){if(!p)return '—'; let t=scoreText(p); const pen=pen
 function addRow(tab,t){if(!tab[t])tab[t]={team:t,pts:0,gf:0,ga:0,gd:0,w:0,d:0,l:0,played:0};return tab[t]} function rankRows(rows){return [...rows].sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.gf-a.gf||a.team.localeCompare(b.team))}
 function groupTable(name,g){const tab={}; DATA.matches.filter(m=>m.group===g&&+m.id<=72).forEach(m=>{addRow(tab,m.home);addRow(tab,m.away); const p=predObj(name,m.id), s=parseScore(p?.score); if(!s)return; const H=addRow(tab,m.home), A=addRow(tab,m.away); H.gf+=s[0];H.ga+=s[1];A.gf+=s[1];A.ga+=s[0];H.gd=H.gf-H.ga;A.gd=A.gf-A.ga;H.played++;A.played++; if(s[0]>s[1]){H.pts+=3;H.w++;A.l++} else if(s[0]<s[1]){A.pts+=3;A.w++;H.l++} else{H.pts++;A.pts++;H.d++;A.d++} }); return rankRows(Object.values(tab))}
 function predictionSummary(name){const winners={}, runners={}, thirds=[], qualified=[]; for(const g of 'ABCDEFGHIJKL'){const rows=groupTable(name,g); if(rows[0]){winners[g]=rows[0].team;qualified.push(rows[0].team)} if(rows[1]){runners[g]=rows[1].team;qualified.push(rows[1].team)} if(rows[2])thirds.push({...rows[2],group:g})} const bestThirds=rankRows(thirds).slice(0,8).map(x=>x.team); qualified.push(...bestThirds); return {winners,runners,bestThirds,qualified}}
-function bonusFor(name){const s=predictionSummary(name); let total=0, sections=[]; let rows=[]; for(const g of 'ABCDEFGHIJKL'){let ok=nameEq(s.winners[g],ACTUAL_FACTS.groupStandings[g][0]); let pts=ok?24:0; total+=pts; rows.push([`Group ${g}`,s.winners[g],ACTUAL_FACTS.groupStandings[g][0],pts,ok])} sections.push(['Group Winners',rows]); rows=[]; for(const g of 'ABCDEFGHIJKL'){let ok=nameEq(s.runners[g],ACTUAL_FACTS.groupStandings[g][1]); let pts=ok?16:0; total+=pts; rows.push([`Group ${g}`,s.runners[g],ACTUAL_FACTS.groupStandings[g][1],pts,ok])} sections.push(['Group Runner-up',rows]); rows=s.bestThirds.map(t=>{let ok=ACTUAL_FACTS.bestThirdPlacedTeams.some(x=>nameEq(x,t)); let pts=ok?8:0; total+=pts; return ['',t,ok?'Best 3rd':'No',pts,ok]}); sections.push(['Eight Best 3rd Teams',rows]); rows=s.qualified.map(t=>{let ok=ACTUAL_FACTS.knockoutTeams.some(x=>nameEq(x,t)); let pts=ok?8:0; total+=pts; return ['',t,ok?'Qualified':'No',pts,ok]}); sections.push(['Qualified Teams',rows]); return {total,sections}}
+function sideToActualTeam(matchId,side){const m=matchById(matchId); if(side==='H')return m.home; if(side==='A')return m.away; return null}
+function predictedSlotWinner(name,matchId){const p=predObj(name,matchId), m=matchById(matchId); if(!p)return null; const side=predWinnerSide(p,m); return sideToActualTeam(matchId,side)}
+function r16PredictedTeams(name){return ['73','74','75','76','77','78','79','80','81','82','83','84','85','86','87','88'].map(id=>predictedSlotWinner(name,id)).filter(Boolean)}
+const ACTUAL_R16_TEAMS=['Paraguay','France','Canada','Morocco','Brazil','Norway','Mexico','England','Colombia','Spain','USA','Belgium','Argentina','Egypt','Switzerland','Portugal'];
+function bonusFor(name){
+  const s=predictionSummary(name); let total=0, sections=[]; let rows=[];
+  for(const g of 'ABCDEFGHIJKL'){
+    let ok=nameEq(s.winners[g],ACTUAL_FACTS.groupStandings[g][0]); let pts=ok?24:0; total+=pts;
+    rows.push([`Group ${g}`,s.winners[g],ACTUAL_FACTS.groupStandings[g][0],pts,ok])
+  }
+  sections.push(['Group Winners',rows]); rows=[];
+  for(const g of 'ABCDEFGHIJKL'){
+    let ok=nameEq(s.runners[g],ACTUAL_FACTS.groupStandings[g][1]); let pts=ok?16:0; total+=pts;
+    rows.push([`Group ${g}`,s.runners[g],ACTUAL_FACTS.groupStandings[g][1],pts,ok])
+  }
+  sections.push(['Group Runner-up',rows]);
+  rows=s.bestThirds.map(t=>{let ok=ACTUAL_FACTS.bestThirdPlacedTeams.some(x=>nameEq(x,t)); let pts=ok?8:0; total+=pts; return ['',t,ok?'Best 3rd':'No',pts,ok]});
+  sections.push(['Eight Best 3rd Teams',rows]);
+  rows=s.qualified.map(t=>{let ok=ACTUAL_FACTS.knockoutTeams.some(x=>nameEq(x,t)); let pts=ok?8:0; total+=pts; return ['',t,ok?'Qualified':'No',pts,ok]});
+  sections.push(['Qualified Teams',rows]);
+
+  // Bonus after Round of 32: every predicted team that actually reached Round of 16 gets 3 points.
+  const predR16=r16PredictedTeams(name);
+  rows=predR16.map(t=>{let ok=ACTUAL_R16_TEAMS.some(x=>nameEq(x,t)); let pts=ok?3:0; total+=pts; return ['Reached R16',t,ok?'Reached R16':'No',pts,ok]});
+  sections.push(['Round of 16 Bonus',rows]);
+  return {total,sections}
+}
 function scorePlayer(name){let match=0,exact=0,r2=0,r4=0,played=0; for(const m of DATA.matches){const r=real(m.id); if(!r)continue; played++; const pts=pointsFor(predObj(name,m.id),r,m); match+=pts; if(pts===6)exact++; if(pts===4)r4++; if(pts===2)r2++;} const b=bonusFor(name).total; return {name,match,bonus:b,total:match+b,exact,r4,r2,played}}
 function leaderboard(){return Object.keys(DATA.players).map(scorePlayer).sort((a,b)=>b.total-a.total||b.match-a.match||b.exact-a.exact||a.name.localeCompare(b.name)).map((x,i)=>({...x,rank:i+1}))}
 function renderLeaderboard(){const rows=leaderboard(); el('playersCount').textContent=rows.length+' نفر'; el('scoredCount').textContent=DATA.matches.filter(m=>real(m.id)).length+' بازی نتیجه‌دار'; el('leaderboard').innerHTML=`<div class="rank-row header"><div>#</div><div>Player</div><div class="pts">Match</div><div class="pts">Bonus</div><div class="pts">Total</div></div>`+rows.map(r=>`<div class="rank-row ${r.rank<=3?'top':''}" data-p="${r.name}"><div class="rank">${r.rank}</div><div><strong>${r.name}</strong><div class="mini">${r.exact} دقیق، ${r.r4} تفاضل/نتیجه، ${r.r2} فقط برنده</div></div><div class="pts matchpts">${r.match}</div><div class="pts bonuspts">${r.bonus}</div><div class="pts totalpts">${r.total}</div></div>`).join(''); document.querySelectorAll('[data-p]').forEach(x=>x.onclick=()=>openPlayer(x.dataset.p))}
@@ -306,8 +350,8 @@ function localKey(p){return Date.UTC(p.year,p.month-1,p.day,p.hour||0,p.minute||
 function matchLocalParts(m){const x=String(m.date||'').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);return x?{year:+x[1],month:+x[2],day:+x[3],hour:+x[4],minute:+x[5]}:norwayParts(new Date(m.date))}
 function todayWindow(){const now=norwayParts(); const base=now.hour<9?addDaysLocal(now,-1):now; const next=addDaysLocal(base,1); return {start:localKey({...base,hour:0,minute:0}),end:localKey({...next,hour:9,minute:0})}}
 function inTodayWindow(m){const dm=displayMatch(m); const w=todayWindow(); const k=localKey(matchLocalParts(dm)); return k>=w.start && k<w.end;}
-function renderMatches(){const q=el('search').value.toLowerCase().trim(), f=el('filter').value; let arr=DATA.matches.filter(m=>f==='all'||(f==='today'&&inTodayWindow(m))||(f==='finished'&&real(m.id))||(f==='r32'&&m.group==='R32')); arr=arr.filter(m=>!q||`${m.home} ${m.away} ${m.group} ${Object.keys(DATA.players).join(' ')}`.toLowerCase().includes(q)); arr.sort((a,b)=>localKey(matchLocalParts(displayMatch(a)))-localKey(matchLocalParts(displayMatch(b)))); el('matches').innerHTML=arr.map(matchCard).join('')||'<div class="card" style="padding:16px">چیزی پیدا نشد.</div>'; document.querySelectorAll('[data-m]').forEach(x=>x.onclick=()=>openMatch(x.dataset.m))}
-function openMatch(id){const m=matchById(id), r=real(id); el('modalTitle').innerHTML=`${m.home} vs ${m.away} ${r?'— '+fmtReal(r):''}`; let rows=Object.keys(DATA.players).map(name=>{const p=predObj(name,id), pts=pointsFor(p,r,m); return {name,p,pts}}).sort((a,b)=>b.pts-a.pts||a.name.localeCompare(b.name)); el('modalBody').innerHTML=`<p class="mini" style="direction:rtl;text-align:right">برای بازی‌های حذفی، اگر بازی به پنالتی رفته باشد، برنده پنالتی هم در امتیازدهی محاسبه می‌شود. قوانین حذفی: ۶ نتیجه و گل دقیق، ۴ تفاضل/تساوی درست با برنده درست، ۲ فقط تیم صعودکننده.</p><table class="match-pred-table"><thead><tr><th>Player</th><th>Prediction</th><th>Points</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${x.name}</td><td>${fmtPred(x.p,m)}</td><td class="p${x.pts}">${r?x.pts:'—'}</td></tr>`).join('')}</tbody></table>`; modal.showModal()}
+function renderMatches(){const q=el('search').value.toLowerCase().trim(), f=el('filter').value; let arr=DATA.matches.filter(m=>f==='all'||(f==='today'&&inTodayWindow(m))||(f==='finished'&&real(m.id))||(f==='r32'&&m.group==='R32')||(f==='r16'&&m.group==='R16')); arr=arr.filter(m=>!q||`${m.home} ${m.away} ${m.group} ${Object.keys(DATA.players).join(' ')}`.toLowerCase().includes(q)); arr.sort((a,b)=>localKey(matchLocalParts(displayMatch(a)))-localKey(matchLocalParts(displayMatch(b)))); el('matches').innerHTML=arr.map(matchCard).join('')||'<div class="card" style="padding:16px">چیزی پیدا نشد.</div>'; document.querySelectorAll('[data-m]').forEach(x=>x.onclick=()=>openMatch(x.dataset.m))}
+function openMatch(id){const m=matchById(id), r=real(id); el('modalTitle').innerHTML=`${m.home} vs ${m.away} ${r?'— '+fmtReal(r):''}`; let rows=Object.keys(DATA.players).map(name=>{const p=predObj(name,id), pts=pointsFor(p,r,m); return {name,p,pts}}).sort((a,b)=>b.pts-a.pts||a.name.localeCompare(b.name)); const vals=koScoreValues(id); const scoringText=(+id>=89&&+id<=96)?'R16: نتیجه دقیق ۱۲، تفاضل درست ۸، فقط برنده ۶. اگر پنالتی شود: نتیجه دقیق + برنده پنالتی ۱۲، مساوی با برنده پنالتی ۸، فقط تیم صعودکننده ۴.':'R32: نتیجه دقیق ۶، تفاضل درست ۴، فقط برنده ۲. اگر پنالتی شود: نتیجه دقیق + برنده پنالتی ۶، مساوی با برنده پنالتی ۴، فقط تیم صعودکننده ۲.'; el('modalBody').innerHTML=`<p class="mini" style="direction:rtl;text-align:right">${isKO(id)?scoringText:'گروهی: نتیجه دقیق ۶، نتیجه/برنده درست ۴.'}</p><table class="match-pred-table"><thead><tr><th>Player</th><th>Prediction</th><th>Points</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${x.name}</td><td>${fmtPred(x.p,m)}</td><td class="p${x.pts}">${r?x.pts:'—'}</td></tr>`).join('')}</tbody></table>`; modal.showModal()}
 function openPlayer(name){const s=scorePlayer(name), b=bonusFor(name); const matchRows=DATA.matches.filter(m=>real(m.id)).map(m=>{const p=predObj(name,m.id), r=real(m.id), pts=pointsFor(p,r,m); return `<tr><td>#${m.id}</td><td>${m.home} - ${m.away}</td><td>${fmtReal(r)}</td><td>${fmtPred(p,m)}</td><td class="p${pts}">${pts}</td></tr>`}).join(''); const bonusRows=b.sections.map(sec=>`<h3>${sec[0]}</h3><table><thead><tr><th>Item</th><th>Prediction</th><th>Actual</th><th>Pts</th></tr></thead><tbody>${sec[1].map(r=>`<tr><td>${r[0]}</td><td>${r[4]?'✅':'❌'} ${r[1]||'—'}</td><td>${r[2]}</td><td class="p${r[3]?6:0}">${r[3]}</td></tr>`).join('')}</tbody></table>`).join(''); el('modalTitle').textContent=`${name} — Match ${s.match} + Bonus ${s.bonus} = ${s.total}`; el('modalBody').innerHTML=`<div class="tabs"><button onclick="tab('matches')">Matches</button><button onclick="tab('bonus')">Bonus</button></div><div id="tab-matches"><table><thead><tr><th>#</th><th>Match</th><th>Actual</th><th>Prediction</th><th>Pts</th></tr></thead><tbody>${matchRows}</tbody></table></div><div id="tab-bonus" class="hide">${bonusRows}</div>`; modal.showModal()}
 function tab(x){el('tab-matches').classList.toggle('hide',x!=='matches');el('tab-bonus').classList.toggle('hide',x!=='bonus')} window.tab=tab;
 el('search').oninput=renderMatches; el('filter').onchange=renderMatches; renderLeaderboard(); renderMatches(); renderFlagBracket(); loadApiResults();
