@@ -152,15 +152,15 @@ const ACTUAL_KO_MATCHES={
  "90":{home:"Canada",away:"Morocco",date:"2026-07-04T19:00:00+02:00",stage:"R16"},
  "91":{home:"Brazil",away:"Norway",date:"2026-07-05T22:00:00+02:00",stage:"R16"},
  "92":{home:"Mexico",away:"England",date:"2026-07-06T02:00:00+02:00",stage:"R16"},
- "93":{home:"Colombia",away:"Spain",date:"2026-07-07T22:00:00+02:00",stage:"R16"},
+ "93":{home:"Portugal",away:"Spain",date:"2026-07-06T21:00:00+02:00",stage:"R16"},
  "94":{home:"USA",away:"Belgium",date:"2026-07-07T02:00:00+02:00",stage:"R16"},
  "95":{home:"Argentina",away:"Egypt",date:"2026-07-07T18:00:00+02:00",stage:"R16"},
- "96":{home:"Switzerland",away:"Portugal",date:"2026-07-07T22:00:00+02:00",stage:"R16"}
+ "96":{home:"Switzerland",away:"Colombia",date:"2026-07-07T22:00:00+02:00",stage:"R16"}
 };
-const BRACKET_SIDE_LEFT=["74","77","73","75","83","84","81","82"];
-const BRACKET_SIDE_RIGHT=["76","78","79","80","86","88","85","87"];
-const R16_LEFT=[["89","74","77"],["90","73","75"],["93","83","84"],["94","81","82"]];
-const R16_RIGHT=[["91","76","78"],["92","79","80"],["95","86","88"],["96","85","87"]];
+const BRACKET_SIDE_LEFT=["74","77","73","75","87","84","81","82"];
+const BRACKET_SIDE_RIGHT=["76","78","79","80","86","88","85","83"];
+const R16_LEFT=[["89","74","77"],["90","73","75"],["93","87","84"],["94","81","82"]];
+const R16_RIGHT=[["91","76","78"],["92","79","80"],["95","86","88"],["96","85","83"]];
 const QF_LEFT=[["97","89","90"],["98","93","94"]], QF_RIGHT=[["99","91","92"],["100","95","96"]];
 
 const API_RESULTS_URL='https://wcup2026.org/api/data.php?action=results&limit=250';
@@ -203,16 +203,16 @@ function koLine(x1,y1,x2,y2){const mid=(x1+x2)/2;return `<path d="M ${x1} ${y1} 
 function renderFlagBracket(){
   const root=el('flagBracket'); if(!root)return;
   const nodes=[]; const lines=[];
-  const leftR32=['74','77','73','75','83','84','81','82'];
-  const rightR32=['76','78','79','80','86','88','85','87'];
+  const leftR32=['74','77','73','75','87','84','81','82'];
+  const rightR32=['76','78','79','80','86','88','85','83'];
   const y8=[7,18,31,42,55,66,79,90];
   leftR32.forEach((id,i)=>nodes.push(koNode(id,id,id==='74'?'74':'',4,y8[i])));
   // overwrite left R32 nodes with real home/away from match ids
   nodes.length=0;
   leftR32.forEach((id,i)=>{const m=matchById(id);nodes.push(koNode(id,m.home,m.away,4,y8[i]));});
   rightR32.forEach((id,i)=>{const m=matchById(id);nodes.push(koNode(id,m.home,m.away,96,y8[i]));});
-  const leftR16=[['89','74','77',19,12.5],['90','73','75',19,36.5],['93','83','84',19,60.5],['94','81','82',19,84.5]];
-  const rightR16=[['91','76','78',81,12.5],['92','79','80',81,36.5],['95','86','88',81,60.5],['96','85','87',81,84.5]];
+  const leftR16=[['89','74','77',19,12.5],['90','73','75',19,36.5],['93','87','84',19,60.5],['94','81','82',19,84.5]];
+  const rightR16=[['91','76','78',81,12.5],['92','79','80',81,36.5],['95','86','88',81,60.5],['96','85','83',81,84.5]];
   leftR16.forEach(x=>nodes.push(koNode(x[0],x[1],x[2],x[3],x[4],'small')));
   rightR16.forEach(x=>nodes.push(koNode(x[0],x[1],x[2],x[3],x[4],'small')));
   const qfs=[['97','89','90',34,24.5],['98','93','94',34,72.5],['99','91','92',66,24.5],['100','95','96',66,72.5]];
@@ -290,7 +290,7 @@ function predictionSummary(name){const winners={}, runners={}, thirds=[], qualif
 function sideToActualTeam(matchId,side){const m=matchById(matchId); if(side==='H')return m.home; if(side==='A')return m.away; return null}
 function predictedSlotWinner(name,matchId){const p=predObj(name,matchId), m=matchById(matchId); if(!p)return null; const side=predWinnerSide(p,m); return sideToActualTeam(matchId,side)}
 function r16PredictedTeams(name){return ['73','74','75','76','77','78','79','80','81','82','83','84','85','86','87','88'].map(id=>predictedSlotWinner(name,id)).filter(Boolean)}
-const ACTUAL_R16_TEAMS=['Paraguay','France','Canada','Morocco','Brazil','Norway','Mexico','England','Colombia','Spain','USA','Belgium','Argentina','Egypt','Switzerland','Portugal'];
+const ACTUAL_R16_TEAMS=['Paraguay','France','Canada','Morocco','Brazil','Norway','Mexico','England','Portugal','Spain','USA','Belgium','Argentina','Egypt','Switzerland','Colombia'];
 function bonusFor(name){
   const s=predictionSummary(name); let total=0, sections=[]; let rows=[];
   for(const g of 'ABCDEFGHIJKL'){
