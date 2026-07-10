@@ -302,10 +302,19 @@ function addRow(tab,t){if(!tab[t])tab[t]={team:t,pts:0,gf:0,ga:0,gd:0,w:0,d:0,l:
 function groupTable(name,g){const tab={}; DATA.matches.filter(m=>m.group===g&&+m.id<=72).forEach(m=>{addRow(tab,m.home);addRow(tab,m.away); const p=predObj(name,m.id), s=parseScore(p?.score); if(!s)return; const H=addRow(tab,m.home), A=addRow(tab,m.away); H.gf+=s[0];H.ga+=s[1];A.gf+=s[1];A.ga+=s[0];H.gd=H.gf-H.ga;A.gd=A.gf-A.ga;H.played++;A.played++; if(s[0]>s[1]){H.pts+=3;H.w++;A.l++} else if(s[0]<s[1]){A.pts+=3;A.w++;H.l++} else{H.pts++;A.pts++;H.d++;A.d++} }); return rankRows(Object.values(tab))}
 function predictionSummary(name){const winners={}, runners={}, thirds=[], qualified=[]; for(const g of 'ABCDEFGHIJKL'){const rows=groupTable(name,g); if(rows[0]){winners[g]=rows[0].team;qualified.push(rows[0].team)} if(rows[1]){runners[g]=rows[1].team;qualified.push(rows[1].team)} if(rows[2])thirds.push({...rows[2],group:g})} const bestThirds=rankRows(thirds).slice(0,8).map(x=>x.team); qualified.push(...bestThirds); return {winners,runners,bestThirds,qualified}}
 function sideToActualTeam(matchId,side){const m=matchById(matchId); if(side==='H')return m.home; if(side==='A')return m.away; return null}
+function sideToPredictedOriginalTeam(p,m,side){
+  // For advancement/bonus points, the exact TEAM a player predicted matters, not the real slot replacement.
+  // Example: if the player predicted Netherlands to beat Morocco, but Morocco actually advanced,
+  // the player must NOT receive Morocco's advancement bonus.
+  if(side==='H')return p?.homeTeam || m?.home || null;
+  if(side==='A')return p?.awayTeam || m?.away || null;
+  return null;
+}
 function predictedSlotWinner(name,matchId){const p=predObj(name,matchId), m=matchById(matchId); if(!p)return null; const side=predWinnerSide(p,m); return sideToActualTeam(matchId,side)}
-function r16PredictedTeams(name){return ['73','74','75','76','77','78','79','80','81','82','83','84','85','86','87','88'].map(id=>predictedSlotWinner(name,id)).filter(Boolean)}
-function predictedMatchWinnerName(name,id){const m=matchById(id), p=predObj(name,id); const side=predWinnerSide(p,m); if(side==='H')return m.home; if(side==='A')return m.away; return null}
-function qfPredictedTeams(name){return ['89','90','91','92','93','94','95','96'].map(id=>predictedMatchWinnerName(name,id)).filter(Boolean)}
+function predictedOriginalWinner(name,matchId){const p=predObj(name,matchId), m=matchById(matchId); if(!p)return null; const side=predWinnerSide(p,m); return sideToPredictedOriginalTeam(p,m,side)}
+function r16PredictedTeams(name){return ['73','74','75','76','77','78','79','80','81','82','83','84','85','86','87','88'].map(id=>predictedOriginalWinner(name,id)).filter(Boolean)}
+function predictedMatchWinnerName(name,id){return predictedOriginalWinner(name,id)}
+function qfPredictedTeams(name){return ['89','90','91','92','93','94','95','96'].map(id=>predictedOriginalWinner(name,id)).filter(Boolean)}
 const ACTUAL_R16_TEAMS=['Paraguay','France','Canada','Morocco','Brazil','Norway','Mexico','England','Portugal','Spain','USA','Belgium','Argentina','Egypt','Switzerland','Colombia'];
 const ACTUAL_QF_TEAMS=['France','Morocco','Norway','England','Spain','Belgium','Argentina','Switzerland'];
 function bonusFor(name){
