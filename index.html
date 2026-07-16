@@ -118,7 +118,7 @@ table{width:100%;border-collapse:collapse;font-size:13px;direction:ltr;text-alig
 
 </style></head><body><div class="wrap">
 <div class="hero"><div><h1>🏆 کل‌کل جام جهانی ۲۰۲۶</h1><div class="sub">داده‌ی اصلی سایت از JSON جدید ساخته شده؛ فقط نتایج دستیِ مشخص‌شده ثابت می‌مانند؛ بقیه نتایج به‌صورت خودکار از API خوانده می‌شوند.</div></div><div class="stats"><span class="pill" id="playersCount"></span><span class="pill" id="scoredCount"></span><span class="pill">R32: 6/4/2 · R16: 12/8/6 · QF: 24/16/12 · SF: 48/32/24</span></div></div>
-<div class="controls"><input id="search" placeholder="جستجوی تیم یا بازیکن..." style="min-width:260px"><select id="filter"><option value="today" selected>بازی‌های امروز تا فردا ۰۹:۰۰</option><option value="finished">بازی‌های نتیجه‌دار</option><option value="all">همه بازی‌ها</option><option value="r32">فقط R32</option><option value="r16">فقط R16</option><option value="qf">فقط QF</option><option value="sf">فقط نیمه‌نهایی (SF)</option></select></div>
+<div class="controls"><input id="search" placeholder="جستجوی تیم یا بازیکن..." style="min-width:260px"><select id="filter"><option value="today" selected>بازی‌های امروز تا فردا ۰۹:۰۰</option><option value="finished">بازی‌های نتیجه‌دار</option><option value="all">همه بازی‌ها</option><option value="r32">فقط R32</option><option value="r16">فقط R16</option><option value="qf">فقط QF</option><option value="sf">فقط نیمه‌نهایی (SF)</option><option value="third">فقط رده‌بندی</option><option value="final">فقط فینال</option></select></div>
 <section class="grid"><aside class="card"><div class="section-title"><h2>جدول کلی</h2><span class="badge">Match + Bonus</span></div><div id="leaderboard"></div></aside><main class="main-stack"><section class="card matches-card"><div class="section-title"><h2>بازی‌ها</h2><span class="badge">فیلتر امروز: ۰۰:۰۰ تا ۰۹:۰۰ فردا به وقت نروژ</span></div><div id="matches" class="matches"></div></section></main></section>
 <section class="card flag-bracket-card"><div class="section-title"><h2>براکت حذفی</h2><span class="badge">فقط پرچم‌ها</span></div><div id="flagBracket" class="flag-bracket"></div></section>
 
@@ -161,7 +161,9 @@ const ACTUAL_KO_MATCHES={
  "99":{home:"Norway",away:"England",date:"2026-07-11T23:00:00+02:00",stage:"QF"},
  "100":{home:"Argentina",away:"Switzerland",date:"2026-07-12T03:00:00+02:00",stage:"QF"},
  "101":{home:"France",away:"Spain",date:"2026-07-14T21:00:00+02:00",stage:"SF"},
- "102":{home:"England",away:"Argentina",date:"2026-07-15T21:00:00+02:00",stage:"SF"}
+ "102":{home:"England",away:"Argentina",date:"2026-07-15T21:00:00+02:00",stage:"SF"},
+ "103":{home:"Match #101 Loser",away:"Match #102 Loser",date:"2026-07-18T23:00:00+02:00",stage:"3rd"},
+ "104":{home:"Match #101 Winner",away:"Match #102 Winner",date:"2026-07-19T21:00:00+02:00",stage:"F"}
 };
 // Ensure QF matches exist in the main match list for filters, scoring, and modals.
 Object.entries(ACTUAL_KO_MATCHES).forEach(([id,m])=>{
@@ -191,10 +193,11 @@ const countryCodeMap={"Mexico":"mx","South Africa":"za","Korea Republic":"kr","S
 const aliases={"South Korea":"Korea Republic","Republic of Korea":"Korea Republic","Turkey":"Türkiye","Côte d'Ivoire":"Cote D'Voire","Ivory Coast":"Cote D'Voire","Cape Verde":"Cabo Verde","Bosnia & Herzegovina":"Bosnia and Herzegovina","Curaçao":"Curacao","United States":"USA"};
 const el=id=>document.getElementById(id); const strip=s=>(s||"").toString().normalize('NFD').replace(/[̀-ͯ]/g,''); const norm=s=>aliases[(s||'').toString().trim()]||aliases[strip((s||'').toString().trim())]||(s||'').toString().trim(); const key=s=>strip(norm(s)).toLowerCase().replace(/[^a-z0-9]/g,'');
 
-function displayMatch(m){const km=ACTUAL_KO_MATCHES[String(m.id)]||{}; const r=real(m.id)||{}; return {...m,home:r.home||km.home||m.home,away:r.away||km.away||m.away,date:km.date||m.date};}
+function displayMatch(m){const id=String(m.id), km=ACTUAL_KO_MATCHES[id]||{}; const r=real(id)||{}; let home=r.home||km.home||m.home, away=r.away||km.away||m.away; if(id==='103'){home=loserName('101')||home; away=loserName('102')||away;} if(id==='104'){home=winnerName('101')||home; away=winnerName('102')||away;} return {...m,home,away,date:km.date||m.date};}
 function matchById(id){const base=DATA.matches.find(x=>String(x.id)===String(id))||{id:String(id),group:+id>=73?'R32':'',date:'',home:'?',away:'?'}; return displayMatch(base)}
-function winnerName(id){const m=matchById(id), r=real(id); if(r?.winner)return r.winner; if(r?.penaltyWinner)return r.penaltyWinner; return null;}
-function resolvedName(token){if(!token)return '?'; if(/^\d+$/.test(String(token))) return winnerName(token)||'?'; return token;}
+function winnerName(id){const m=matchById(id), r=real(id); if(r?.winner)return r.winner; if(r?.penaltyWinner)return r.penaltyWinner; if(r&&Number.isFinite(+r.homeScore)&&Number.isFinite(+r.awayScore)){if(+r.homeScore>+r.awayScore)return r.home||m.home;if(+r.awayScore>+r.homeScore)return r.away||m.away;} return null;}
+function loserName(id){const m=matchById(id), r=real(id), win=winnerName(id); if(!r||!win)return null; const home=r.home||m.home, away=r.away||m.away; if(nameEq(win,home))return away; if(nameEq(win,away))return home; return null;}
+function resolvedName(token){if(!token)return '?'; if(/^L\d+$/.test(String(token))) return loserName(String(token).slice(1))||'?'; if(/^\d+$/.test(String(token))) return winnerName(token)||'?'; return token;}
 function kickoffLabel(date){try{return new Date(date).toLocaleString('fa-IR',{timeZone:'Europe/Oslo',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit',hour12:false})}catch(e){return ''}}
 function smallMatch(id,side='left'){const m=matchById(id), r=real(id), done=!!r, win=winnerName(id); const score=done?fmtReal(r):'-'; const pen=r?.penaltyWinner?`<div class="bnote">صعود: ${r.penaltyWinner}</div>`:''; return `<div class="bmatch ${done?'done':''} ${side==='left'?'connector':'right-conn'}" data-m="${id}"><div class="btop"><span class="bracket-stage">1/16</span><span>${kickoffLabel(m.date)}</span></div><div class="bteams"><div class="bteam ${win&&nameEq(win,m.home)?'winner-row':''}"><span class="name">${flag(m.home)}<span>${m.home}</span></span>${win&&nameEq(win,m.home)?'<span class="check">✓</span>':''}</div><div class="bteam ${win&&nameEq(win,m.away)?'winner-row':''}"><span class="name">${flag(m.away)}<span>${m.away}</span></span>${win&&nameEq(win,m.away)?'<span class="check">✓</span>':''}</div></div><div class="bscore">${score}</div>${pen}</div>`}
 function nextMatch(id,a,b,stage='1/8',side='left'){const home=resolvedName(a), away=resolvedName(b); const ready=home!=='?'&&away!=='?'; const r=real(id), win=winnerName(id); return `<div class="bmatch ${r?'done':''} ${ready?'':'placeholder'} ${side==='left'?'connector':'right-conn'}" ${ready?`data-m="${id}"`:''}><div class="btop"><span class="bracket-stage">${stage}</span><span>${stage==='1/8'?'مرحله بعد':''}</span></div><div class="bteams"><div class="bteam ${win&&nameEq(win,home)?'winner-row':''}"><span class="name">${home==='?'?'❔':flag(home)}<span>${home}</span></span></div><div class="bteam ${win&&nameEq(win,away)?'winner-row':''}"><span class="name">${away==='?'?'❔':flag(away)}<span>${away}</span></span></div></div><div class="bscore">${r?fmtReal(r):'-'}</div></div>`}
@@ -233,7 +236,7 @@ function renderFlagBracket(){
   nodes.push(koNode('101','97','98',43,49,'xsmall'));
   nodes.push(koNode('102','99','100',57,49,'xsmall'));
   nodes.push(koNode('104','101','102',50,56.5,'final'));
-  nodes.push(koNode('103','101','102',50,72,'final'));
+  nodes.push(koNode('103','L101','L102',50,72,'final'));
   // left connectors
   [[4,7,19,12.5],[4,18,19,12.5],[4,31,19,36.5],[4,42,19,36.5],[4,55,19,60.5],[4,66,19,60.5],[4,79,19,84.5],[4,90,19,84.5],
    [19,12.5,34,24.5],[19,36.5,34,24.5],[19,60.5,34,72.5],[19,84.5,34,72.5],[34,24.5,43,49],[34,72.5,43,49],
@@ -246,7 +249,7 @@ function renderFlagBracket(){
 }
 
 function centerBox(title,stage,id,a,b){return `<div>${title?`<div class="${stage==='final'?'final-box':'third-box'}">${title}</div>`:''}${nextMatch(id,a,b,stage==='final'?'فینال':stage==='third'?'رده‌بندی':'1/2','center').replace('connector','').replace('right-conn','')}</div>`}
-function renderBracket(){const root=el('koBracket'); if(!root)return; const leftR32=BRACKET_SIDE_LEFT.map(id=>smallMatch(id,'left')).join(''); const rightR32=BRACKET_SIDE_RIGHT.map(id=>smallMatch(id,'right')).join(''); const leftR16=R16_LEFT.map(x=>nextMatch(x[0],x[1],x[2],'1/8','left')).join(''); const rightR16=R16_RIGHT.map(x=>nextMatch(x[0],x[1],x[2],'1/8','right')).join(''); const leftQ=QF_LEFT.map(x=>nextMatch(x[0],x[1],x[2],'1/4','left')).join(''); const rightQ=QF_RIGHT.map(x=>nextMatch(x[0],x[1],x[2],'1/4','right')).join(''); root.innerHTML=`<div class="bracket-col r32">${leftR32}</div><div class="bracket-col">${leftR16}${leftQ}</div><div class="bracket-col center"><div class="trophy">🏆</div>${centerBox('🏆 فینال','final','104','101','102')}${centerBox('🥉 دیدار رده‌بندی','third','103','101','102')}</div><div class="bracket-col">${rightR16}${rightQ}</div><div class="bracket-col r32">${rightR32}</div>`; root.querySelectorAll('[data-m]').forEach(x=>x.onclick=()=>openMatch(x.dataset.m));}
+function renderBracket(){const root=el('koBracket'); if(!root)return; const leftR32=BRACKET_SIDE_LEFT.map(id=>smallMatch(id,'left')).join(''); const rightR32=BRACKET_SIDE_RIGHT.map(id=>smallMatch(id,'right')).join(''); const leftR16=R16_LEFT.map(x=>nextMatch(x[0],x[1],x[2],'1/8','left')).join(''); const rightR16=R16_RIGHT.map(x=>nextMatch(x[0],x[1],x[2],'1/8','right')).join(''); const leftQ=QF_LEFT.map(x=>nextMatch(x[0],x[1],x[2],'1/4','left')).join(''); const rightQ=QF_RIGHT.map(x=>nextMatch(x[0],x[1],x[2],'1/4','right')).join(''); root.innerHTML=`<div class="bracket-col r32">${leftR32}</div><div class="bracket-col">${leftR16}${leftQ}</div><div class="bracket-col center"><div class="trophy">🏆</div>${centerBox('🏆 فینال','final','104','101','102')}${centerBox('🥉 دیدار رده‌بندی','third','103','L101','L102')}</div><div class="bracket-col">${rightR16}${rightQ}</div><div class="bracket-col r32">${rightR32}</div>`; root.querySelectorAll('[data-m]').forEach(x=>x.onclick=()=>openMatch(x.dataset.m));}
 function flag(t){const c=countryCodeMap[norm(t)];return c?`<img class="flag" src="https://flagcdn.com/w80/${c}.png">`:`<span class="flag">?</span>`}
 function parseScore(s){let m=String(s||'').match(/(\d+)\s*[-:–]\s*(\d+)/);return m?[+m[1],+m[2]]:null} function outcome(a,b){return a>b?'H':a<b?'A':'D'} function nameEq(a,b){return key(a)===key(b)}
 function predObj(name,id){return DATA.players[name]?.[String(id)]||null} function scoreText(p){return p?.score||'—'} function real(id){const k=String(id); if(MANUAL_RESULT_OVERRIDES[k])return MANUAL_RESULT_OVERRIDES[k]; if(API_RESULTS_BY_MATCH_ID[k])return API_RESULTS_BY_MATCH_ID[k]; if(!API_LOADED)return DATA.actualResults[k]||null; return +k<=72 ? (DATA.actualResults[k]||null) : null} function isKO(id){return +id>=73}
@@ -316,11 +319,53 @@ function predictedSlotWinner(name,matchId){const p=predObj(name,matchId), m=matc
 function predictedOriginalWinner(name,matchId){const p=predObj(name,matchId), m=matchById(matchId); if(!p)return null; const side=predWinnerSide(p,m); return sideToPredictedOriginalTeam(p,m,side)}
 function r16PredictedTeams(name){return ['73','74','75','76','77','78','79','80','81','82','83','84','85','86','87','88'].map(id=>predictedOriginalWinner(name,id)).filter(Boolean)}
 function predictedMatchWinnerName(name,id){return predictedOriginalWinner(name,id)}
-function qfPredictedTeams(name){return ['89','90','91','92','93','94','95','96'].map(id=>predictedOriginalWinner(name,id)).filter(Boolean)}
-function sfPredictedTeams(name){return ['97','98','99','100'].map(id=>predictedOriginalWinner(name,id)).filter(Boolean)}
+function predictedOriginalLoser(name,matchId){const p=predObj(name,matchId), m=matchById(matchId); if(!p)return null; const side=predWinnerSide(p,m); if(side==='H')return p.awayTeam||m.away||null; if(side==='A')return p.homeTeam||m.home||null; return null}
+
+// Resolve a player's own knockout bracket recursively. From QF onward many Excel rows
+// contain only scores (no team names), so reading homeTeam/awayTeam directly loses the teams.
+const PRED_LINKS={
+  '89':['74','77'],'90':['73','75'],'91':['76','78'],'92':['79','80'],
+  '93':['83','84'],'94':['81','82'],'95':['86','88'],'96':['85','87'],
+  '97':['89','90'],'98':['93','94'],'99':['91','92'],'100':['95','96'],
+  '101':['97','98'],'102':['99','100'],'104':['101','102']
+};
+function predictedParticipants(name,id,seen=new Set()){
+  id=String(id); if(seen.has(id))return [null,null]; seen.add(id);
+  if(id==='103')return [predictedResolvedLoser(name,'101',new Set(seen)),predictedResolvedLoser(name,'102',new Set(seen))];
+  const p=predObj(name,id);
+  if(p?.homeTeam||p?.awayTeam)return [p.homeTeam||null,p.awayTeam||null];
+  const links=PRED_LINKS[id];
+  if(links)return [predictedResolvedWinner(name,links[0],new Set(seen)),predictedResolvedWinner(name,links[1],new Set(seen))];
+  const m=matchById(id); return [m?.home||null,m?.away||null];
+}
+function predictedResolvedWinner(name,id,seen=new Set()){
+  const p=predObj(name,id); if(!p)return null;
+  const [home,away]=predictedParticipants(name,id,seen);
+  const side=predWinnerSide(p,{home,away});
+  return side==='H'?home:side==='A'?away:null;
+}
+function predictedResolvedLoser(name,id,seen=new Set()){
+  const p=predObj(name,id); if(!p)return null;
+  const [home,away]=predictedParticipants(name,id,seen);
+  const side=predWinnerSide(p,{home,away});
+  return side==='H'?away:side==='A'?home:null;
+}
+function qfPredictedTeams(name){return ['89','90','91','92','93','94','95','96'].map(id=>predictedResolvedWinner(name,id)).filter(Boolean)}
+function sfPredictedTeams(name){return ['97','98','99','100'].map(id=>predictedResolvedWinner(name,id)).filter(Boolean)}
+function predictedFinalists(name){return [predictedResolvedWinner(name,'101'),predictedResolvedWinner(name,'102')].filter(Boolean)}
+function predictedThirdPlaceTeams(name){return [predictedResolvedLoser(name,'101'),predictedResolvedLoser(name,'102')].filter(Boolean)}
+function predictedChampion(name){return predictedResolvedWinner(name,'104')}
+function predictedRunnerUp(name){return predictedResolvedLoser(name,'104')}
+function predictedThird(name){return predictedResolvedWinner(name,'103')}
+function actualFinalists(){return [winnerName('101'),winnerName('102')].filter(Boolean)}
+function actualThirdPlaceTeams(){return [loserName('101'),loserName('102')].filter(Boolean)}
+function actualChampion(){return winnerName('104')}
+function actualRunnerUp(){return loserName('104')}
+function actualThird(){return winnerName('103')}
 const ACTUAL_R16_TEAMS=['Paraguay','France','Canada','Morocco','Brazil','Norway','Mexico','England','Portugal','Spain','USA','Belgium','Argentina','Egypt','Switzerland','Colombia'];
 const ACTUAL_QF_TEAMS=['France','Morocco','Norway','England','Spain','Belgium','Argentina','Switzerland'];
-function actualSFTeams(){return ['97','98','99','100'].map(id=>winnerName(id)).filter(Boolean)}
+const ACTUAL_SF_TEAMS=['France','Spain','England','Argentina'];
+function actualSFTeams(){const teams=['97','98','99','100'].map(id=>winnerName(id)).filter(Boolean); return teams.length===4?teams:ACTUAL_SF_TEAMS;}
 function bonusFor(name){
   const s=predictionSummary(name); let total=0, sections=[]; let rows=[];
   for(const g of 'ABCDEFGHIJKL'){
@@ -352,27 +397,56 @@ function bonusFor(name){
   const predSF=sfPredictedTeams(name), realSF=actualSFTeams();
   rows=predSF.map(t=>{let ok=realSF.some(x=>nameEq(x,t)); let pts=ok?5:0; total+=pts; return ['Reached SF',t,ok?'Reached SF':'No',pts,ok]});
   sections.push(['Semifinals Bonus',rows]);
+
+  // Finalists are now known after both semifinals: 6 points for each exact predicted finalist.
+  const realFinalists=actualFinalists(), predFinal=predictedFinalists(name);
+  rows=predFinal.map(t=>{let ready=realFinalists.length===2; let ok=ready&&realFinalists.some(x=>nameEq(x,t)); let pts=ok?6:0; total+=pts; return ['Reached Final',t,ready?(ok?'Reached Final':'No'):'Pending',pts,ok]});
+  sections.push(['Finalists Bonus',rows]);
+
+  // The two third-place-match teams are visible now, but the rules do not award a separate reach-the-3rd-place-match bonus.
+  const realThirdTeams=actualThirdPlaceTeams(), predThirdTeams=predictedThirdPlaceTeams(name);
+  rows=predThirdTeams.map(t=>{let ready=realThirdTeams.length===2; let ok=ready&&realThirdTeams.some(x=>nameEq(x,t)); return ['Third-place match team',t,ready?(ok?'In third-place match':'No'):'Pending',0,ok]});
+  sections.push(['Third-place Match Teams (information only)',rows]);
+
+  // Final placement bonuses activate automatically only after the relevant results exist.
+  const champ=actualChampion(), runner=actualRunnerUp(), third=actualThird();
+  rows=[];
+  const pc=predictedChampion(name);
+  if(pc){let pts=0,actual='Pending',ok=false; if(champ&&runner&&third){if(nameEq(pc,champ)){pts=80;actual=champ;ok=true}else if(nameEq(pc,runner)||nameEq(pc,third)){pts=40;actual=`${champ} (champion)`;ok=true}else actual=`${champ} (champion)`} total+=pts; rows.push(['Champion / Not Champion',pc,actual,pts,ok])}
+  const pr=predictedRunnerUp(name);
+  if(pr){let pts=0,actual='Pending',ok=false; if(champ&&runner&&third){if(nameEq(pr,runner)){pts=40;actual=runner;ok=true}else if(nameEq(pr,champ)||nameEq(pr,third)){pts=20;actual=`${runner} (runner-up)`;ok=true}else actual=`${runner} (runner-up)`} total+=pts; rows.push(['Runner-up / Not Runner-up',pr,actual,pts,ok])}
+  const pt=predictedThird(name);
+  if(pt){let pts=0,actual='Pending',ok=false; if(champ&&runner&&third){if(nameEq(pt,third)){pts=20;actual=third;ok=true}else if(nameEq(pt,champ)||nameEq(pt,runner)){pts=10;actual=`${third} (third place)`;ok=true}else actual=`${third} (third place)`} total+=pts; rows.push(['Third / Not Third',pt,actual,pts,ok])}
+  sections.push(['Final Placement Bonuses',rows]);
   return {total,sections}
 }
 function scorePlayer(name){let match=0,exact=0,r2=0,r4=0,played=0; for(const m of DATA.matches){const r=real(m.id); if(!r)continue; played++; const pts=pointsFor(predObj(name,m.id),r,m); const vals=koScoreValues(m.id); match+=pts; if(pts===6||pts===12||pts===24||pts===48||pts===96)exact++; if(pts===4||pts===8||pts===16||pts===32||pts===64)r4++; if(pts===2||pts===6||pts===12||pts===24||pts===48)r2++;} const b=bonusFor(name).total; return {name,match,bonus:b,total:match+b,exact,r4,r2,played}}
 function leaderboard(){return Object.keys(DATA.players).map(scorePlayer).sort((a,b)=>b.total-a.total||b.match-a.match||b.exact-a.exact||a.name.localeCompare(b.name)).map((x,i)=>({...x,rank:i+1}))}
 function renderLeaderboard(){const rows=leaderboard(); el('playersCount').textContent=rows.length+' نفر'; el('scoredCount').textContent=DATA.matches.filter(m=>real(m.id)).length+' بازی نتیجه‌دار'; el('leaderboard').innerHTML=`<div class="rank-row header"><div>#</div><div>Player</div><div class="pts">Match</div><div class="pts">Bonus</div><div class="pts">Total</div></div>`+rows.map(r=>`<div class="rank-row ${r.rank<=3?'top':''}" data-p="${r.name}"><div class="rank">${r.rank}</div><div><strong>${r.name}</strong><div class="mini">${r.exact} دقیق، ${r.r4} تفاضل/نتیجه، ${r.r2} فقط برنده</div></div><div class="pts matchpts">${r.match}</div><div class="pts bonuspts">${r.bonus}</div><div class="pts totalpts">${r.total}</div></div>`).join(''); document.querySelectorAll('[data-p]').forEach(x=>x.onclick=()=>openPlayer(x.dataset.p))}
 function matchCard(m){m=displayMatch(m);const r=real(m.id), q=Object.keys(DATA.players).filter(p=>pointsFor(predObj(p,m.id),r,m)===6).length; return `<article class="match card" data-m="${m.id}"><div class="match-head"><span>#${m.id} · ${m.group} · ${new Date(m.date).toLocaleString('en-GB',{timeZone:'Europe/Oslo',dateStyle:'medium',timeStyle:'short',hour12:false})}</span><span class="badge">${r?'FT / Scored':'Upcoming'}</span></div><div class="teams"><div class="team">${flag(m.home)}<span>${m.home}</span></div><div class="score">${fmtReal(r)}</div><div class="team away"><span>${m.away}</span>${flag(m.away)}</div></div><div class="match-foot"><span class="chip">${q} نفر ۶ امتیازی</span>${r?.penaltyWinner?`<span class="chip pen">صعود: ${r.penaltyWinner}</span>`:''}<span class="chip">جزئیات</span></div></article>`}
-function matchTeamsForId(id){const base=DATA.matches.find(x=>String(x.id)===String(id))||{}; const km=ACTUAL_KO_MATCHES[String(id)]||{}; return {home:km.home||base.home,away:km.away||base.away};}
+function matchTeamsForId(id){id=String(id); const base=DATA.matches.find(x=>String(x.id)===id)||{}; const km=ACTUAL_KO_MATCHES[id]||{}; if(id==='103')return {home:loserName('101')||km.home||base.home,away:loserName('102')||km.away||base.away}; if(id==='104')return {home:winnerName('101')||km.home||base.home,away:winnerName('102')||km.away||base.away}; return {home:km.home||base.home,away:km.away||base.away};}
 function apiScoreArray(m){if(Array.isArray(m.score))return m.score; if(m.score&&typeof m.score==='object')return [m.score.home??m.score[0],m.score.away??m.score[1]]; return null;}
 function apiWinner(home,away,hs,as){if(+hs>+as)return home; if(+as>+hs)return away; return null;}
-function mapApiResults(matches){const out={}; const ids=DATA.matches.map(m=>String(m.id));
-  for(const am of matches||[]){
-    if(!am || (am.status&&String(am.status).toLowerCase()!=='finished'&&String(am.status).toLowerCase()!=='complete')) continue;
-    const score=apiScoreArray(am); if(!score || score[0]==null || score[1]==null) continue;
-    const ah=norm(am.team1||am.home||am.homeTeam||am.team1_ar), aa=norm(am.team2||am.away||am.awayTeam||am.team2_ar);
-    for(const id of ids){ if(MANUAL_RESULT_OVERRIDES[id]) continue; const mt=matchTeamsForId(id); if(!mt.home||!mt.away)continue;
-      let direct=nameEq(ah,mt.home)&&nameEq(aa,mt.away), rev=nameEq(ah,mt.away)&&nameEq(aa,mt.home); if(!direct&&!rev)continue;
-      const hs=direct?+score[0]:+score[1], as=direct?+score[1]:+score[0], home=mt.home, away=mt.away;
-      out[id]={homeScore:hs,awayScore:as,home,away,winner:apiWinner(home,away,hs,as),source:'api'};
-      break;
+function mapApiResults(matches){
+  const out={};
+  const all=(matches||[]).filter(am=>am && (!am.status || ['finished','complete'].includes(String(am.status).toLowerCase())) && apiScoreArray(am));
+  function mapIds(ids){
+    for(const am of all){
+      const score=apiScoreArray(am); if(!score || score[0]==null || score[1]==null)continue;
+      const ah=norm(am.team1||am.home||am.homeTeam||am.team1_ar), aa=norm(am.team2||am.away||am.awayTeam||am.team2_ar);
+      for(const id of ids){
+        if(MANUAL_RESULT_OVERRIDES[id]||out[id])continue;
+        const mt=matchTeamsForId(id); if(!mt.home||!mt.away)continue;
+        const direct=nameEq(ah,mt.home)&&nameEq(aa,mt.away), rev=nameEq(ah,mt.away)&&nameEq(aa,mt.home); if(!direct&&!rev)continue;
+        const hs=direct?+score[0]:+score[1], as=direct?+score[1]:+score[0], home=mt.home, away=mt.away;
+        out[id]={homeScore:hs,awayScore:as,home,away,winner:apiWinner(home,away,hs,as),source:'api'};
+        break;
+      }
     }
   }
+  mapIds(DATA.matches.map(m=>String(m.id)).filter(id=>+id<=102));
+  API_RESULTS_BY_MATCH_ID={...API_RESULTS_BY_MATCH_ID,...out};
+  mapIds(['103','104']);
   return out;
 }
 async function loadApiResults(){
@@ -391,8 +465,8 @@ function localKey(p){return Date.UTC(p.year,p.month-1,p.day,p.hour||0,p.minute||
 function matchLocalParts(m){const x=String(m.date||'').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);return x?{year:+x[1],month:+x[2],day:+x[3],hour:+x[4],minute:+x[5]}:norwayParts(new Date(m.date))}
 function todayWindow(){const now=norwayParts(); const base=now.hour<9?addDaysLocal(now,-1):now; const next=addDaysLocal(base,1); return {start:localKey({...base,hour:0,minute:0}),end:localKey({...next,hour:9,minute:0})}}
 function inTodayWindow(m){const dm=displayMatch(m); const w=todayWindow(); const k=localKey(matchLocalParts(dm)); return k>=w.start && k<w.end;}
-function renderMatches(){const q=el('search').value.toLowerCase().trim(), f=el('filter').value; let arr=DATA.matches.filter(m=>f==='all'||(f==='today'&&inTodayWindow(m))||(f==='finished'&&real(m.id))||(f==='r32'&&m.group==='R32')||(f==='r16'&&m.group==='R16')||(f==='qf'&&m.group==='QF')||(f==='sf'&&m.group==='SF')); arr=arr.filter(m=>!q||`${m.home} ${m.away} ${m.group} ${Object.keys(DATA.players).join(' ')}`.toLowerCase().includes(q)); arr.sort((a,b)=>localKey(matchLocalParts(displayMatch(a)))-localKey(matchLocalParts(displayMatch(b)))); el('matches').innerHTML=arr.map(matchCard).join('')||'<div class="card" style="padding:16px">چیزی پیدا نشد.</div>'; document.querySelectorAll('[data-m]').forEach(x=>x.onclick=()=>openMatch(x.dataset.m))}
-function openMatch(id){const m=matchById(id), r=real(id); el('modalTitle').innerHTML=`${m.home} vs ${m.away} ${r?'— '+fmtReal(r):''}`; let rows=Object.keys(DATA.players).map(name=>{const p=predObj(name,id), pts=pointsFor(p,r,m); return {name,p,pts}}).sort((a,b)=>b.pts-a.pts||a.name.localeCompare(b.name)); const vals=koScoreValues(id); const scoringText=(+id>=101&&+id<=102)?'SF: نتیجه دقیق ۴۸، تفاضل درست ۳۲، فقط برنده ۲۴. اگر پنالتی شود: نتیجه دقیق + برنده پنالتی ۶، مساوی با برنده پنالتی ۴، فقط تیم صعودکننده ۲.':((+id>=97&&+id<=100)?'QF: نتیجه دقیق ۲۴، تفاضل درست ۱۶، فقط برنده ۱۲. اگر پنالتی شود: نتیجه دقیق + برنده پنالتی ۶، مساوی با برنده پنالتی ۴، فقط تیم صعودکننده ۲.':((+id>=89&&+id<=96)?'R16: نتیجه دقیق ۱۲، تفاضل درست ۸، فقط برنده ۶. اگر پنالتی شود: نتیجه دقیق + برنده پنالتی ۴، فقط تیم صعودکننده ۲.':'R32: نتیجه دقیق ۶، تفاضل درست ۴، فقط برنده ۲. اگر پنالتی شود: نتیجه دقیق + برنده پنالتی ۶، مساوی با برنده پنالتی ۴، فقط تیم صعودکننده ۲.')); el('modalBody').innerHTML=`<p class="mini" style="direction:rtl;text-align:right">${isKO(id)?scoringText:'گروهی: نتیجه دقیق ۶، نتیجه/برنده درست ۴.'}</p><table class="match-pred-table"><thead><tr><th>Player</th><th>Prediction</th><th>Points</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${x.name}</td><td>${fmtPred(x.p,m)}</td><td class="p${x.pts}">${r?x.pts:'—'}</td></tr>`).join('')}</tbody></table>`; modal.showModal()}
+function renderMatches(){const q=el('search').value.toLowerCase().trim(), f=el('filter').value; let arr=DATA.matches.filter(m=>f==='all'||(f==='today'&&inTodayWindow(m))||(f==='finished'&&real(m.id))||(f==='r32'&&m.group==='R32')||(f==='r16'&&m.group==='R16')||(f==='qf'&&m.group==='QF')||(f==='sf'&&m.group==='SF')||(f==='third'&&(m.group==='3rd'||String(m.id)==='103'))||(f==='final'&&String(m.id)==='104')); arr=arr.filter(m=>!q||`${m.home} ${m.away} ${m.group} ${Object.keys(DATA.players).join(' ')}`.toLowerCase().includes(q)); arr.sort((a,b)=>localKey(matchLocalParts(displayMatch(a)))-localKey(matchLocalParts(displayMatch(b)))); el('matches').innerHTML=arr.map(matchCard).join('')||'<div class="card" style="padding:16px">چیزی پیدا نشد.</div>'; document.querySelectorAll('[data-m]').forEach(x=>x.onclick=()=>openMatch(x.dataset.m))}
+function openMatch(id){const m=displayMatch(matchById(id)), r=real(id); el('modalTitle').innerHTML=`${m.home} vs ${m.away} ${r?'— '+fmtReal(r):''}`; let rows=Object.keys(DATA.players).map(name=>{const p=predObj(name,id), pts=pointsFor(p,r,m); return {name,p,pts}}).sort((a,b)=>b.pts-a.pts||a.name.localeCompare(b.name)); let scoringText=''; const n=+id; if(n===104)scoringText='Final: نتیجه دقیق ۹۶، تفاضل درست ۶۴، فقط برنده ۴۸. اگر پنالتی شود، قانون ثابت پنالتی ۶/۴/۲ اعمال می‌شود.'; else if(n===103)scoringText='Third place: نتیجه دقیق ۴۸، تفاضل درست ۳۲، فقط برنده ۲۴. اگر پنالتی شود، قانون ثابت پنالتی ۶/۴/۲ اعمال می‌شود.'; else if(n>=101&&n<=102)scoringText='SF: نتیجه دقیق ۴۸، تفاضل درست ۳۲، فقط برنده ۲۴. اگر پنالتی شود، قانون ثابت پنالتی ۶/۴/۲ اعمال می‌شود.'; else if(n>=97&&n<=100)scoringText='QF: نتیجه دقیق ۲۴، تفاضل درست ۱۶، فقط برنده ۱۲. اگر پنالتی شود، قانون ثابت پنالتی ۶/۴/۲ اعمال می‌شود.'; else if(n>=89&&n<=96)scoringText='R16: نتیجه دقیق ۱۲، تفاضل درست ۸، فقط برنده ۶. اگر پنالتی شود، قانون ثابت پنالتی ۶/۴/۲ اعمال می‌شود.'; else scoringText='R32: نتیجه دقیق ۶، تفاضل درست ۴، فقط برنده ۲. اگر پنالتی شود، قانون ثابت پنالتی ۶/۴/۲ اعمال می‌شود.'; el('modalBody').innerHTML=`<p class="mini" style="direction:rtl;text-align:right">${isKO(id)?scoringText:'گروهی: نتیجه دقیق ۶، نتیجه/برنده درست ۴.'}</p><table class="match-pred-table"><thead><tr><th>Player</th><th>Prediction</th><th>Points</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${x.name}</td><td>${fmtPred(x.p,m)}</td><td class="p${x.pts}">${r?x.pts:'—'}</td></tr>`).join('')}</tbody></table>`; modal.showModal()}
 function openPlayer(name){const s=scorePlayer(name), b=bonusFor(name); const matchRows=DATA.matches.filter(m=>real(m.id)).map(m=>{const p=predObj(name,m.id), r=real(m.id), pts=pointsFor(p,r,m); return `<tr><td>#${m.id}</td><td>${m.home} - ${m.away}</td><td>${fmtReal(r)}</td><td>${fmtPred(p,m)}</td><td class="p${pts}">${pts}</td></tr>`}).join(''); const bonusRows=b.sections.map(sec=>`<h3>${sec[0]}</h3><table><thead><tr><th>Item</th><th>Prediction</th><th>Actual</th><th>Pts</th></tr></thead><tbody>${sec[1].map(r=>`<tr><td>${r[0]}</td><td>${r[4]?'✅':'❌'} ${r[1]||'—'}</td><td>${r[2]}</td><td class="p${r[3]?6:0}">${r[3]}</td></tr>`).join('')}</tbody></table>`).join(''); el('modalTitle').textContent=`${name} — Match ${s.match} + Bonus ${s.bonus} = ${s.total}`; el('modalBody').innerHTML=`<div class="tabs"><button onclick="tab('matches')">Matches</button><button onclick="tab('bonus')">Bonus</button></div><div id="tab-matches"><table><thead><tr><th>#</th><th>Match</th><th>Actual</th><th>Prediction</th><th>Pts</th></tr></thead><tbody>${matchRows}</tbody></table></div><div id="tab-bonus" class="hide">${bonusRows}</div>`; modal.showModal()}
 function tab(x){el('tab-matches').classList.toggle('hide',x!=='matches');el('tab-bonus').classList.toggle('hide',x!=='bonus')} window.tab=tab;
 el('search').oninput=renderMatches; el('filter').onchange=renderMatches; renderLeaderboard(); renderMatches(); renderFlagBracket(); loadApiResults();
